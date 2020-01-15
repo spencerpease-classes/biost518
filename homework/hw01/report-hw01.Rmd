@@ -18,41 +18,189 @@ library(ggplot2)
 
 # Prepare data
 stringData <- read_csv("data/stringdata.csv", col_types = "id")
-wcgs <- read_csv("data/wcgs.csv") %>% select(height, weight)
+
+wcgs <-
+  read_csv("data/wcgs.csv") %>%
+  select(height, weight) %>%
+  mutate(
+    height_cm = 2.54 * height,
+    weight_kg = 0.45359237 * weight
+  )
 
 ```
 
 
-# _(Q1)_ 
+# _(Q1)_
 
 ## _(Q1.a)_
-## _(Q1.b)_ 
+
+This study is an observational study, as it looks at the results a clinical
+study, not performing the clinical study itself.
+
+## _(Q1.b)_
+
+This article presents the findings without any mention of the confidence or
+level of significance of the findings. Without these qualifications, the article
+implies that the results should be taken as the truth, which they then use to
+assert a casual relationship that could be adapted to future interventions.
 
 
 # _(Q2)_
 
 ## _(Q2.a)_
+
+$\alpha$ represents the length of the hanging string when no external weight is
+attached to it (the “unstretched” length).
+
 ## _(Q2.b)_
+
+One label capturing what $\beta$ measures is the “elasticity”, or “stretchiness
+coefficient”. $\beta$ signals how much the length of the string will change for
+a given amount of weight suspended from the string.
+
 ## _(Q2.c)_
+
+We should expect beta to be larger for a rubber band than a rope. From
+experience, a rubber band will stretch much further than a rope will under the
+same force.
+
 ## _(Q2.d)_
+
+It is reasonable to estimate the length of the string under a $30$-ounce weight
+because we are estimating within the range of data used to fit the model,
+meaning the estimate is likely to follow the truth observed in the data.
+
 ## _(Q2.e)_
+
+It is somewhat reasonable to estimate the length of the string under an 80-ounce
+weight, because even though the estimate is outside the range of the weight in
+the data used to fit the model, it is not too far from that range, and 80 ounces
+is not an unrealistic weight to estimate in this domain.
+
 ## _(Q2.f)_
+
+It is not reasonable to estimate the length of the string under a $120$-ounce
+weight, since we know the string will break under weights greater than 100
+ounces, making it an unrealistic weight to estimate for our model.
+
 ## _(Q2.g)_
+
+It is completely reasonable to use the fitted model to estimate $E(Y|x=-10)$,
+since the expected value $E$ has only to do with the model, not what the model
+represents. The model can determine the expected value of $-10$, even though a
+$-10$-ounce weight is impossible in the real world.
+
 ## _(Q2.h)_
+
+TBD
+
 ## _(Q2.i)_
+
+```{r}
+
+lm_string <- lm(length ~ weight, data = stringData)
+
+inf_tbl_string <-
+  bind_cols(broom::tidy(lm_string), broom::confint_tidy(lm_string)) %>%
+  slice(-1) %>%
+  select(-std.error, -statistic) %>%
+  magrittr::set_colnames(c("Term", "Point est.", "P-val", "2.5%", "95.7%")) %>%
+  mutate(`P-val` = format(`P-val`, digits = 3))
+
+knitr::kable(
+  inf_tbl_string,
+  booktabs = TRUE,
+  digits = 3,
+  caption = paste("")
+)
+
+```
+
+
+
 ## _(Q2.j)_
+
+TBD
+
 ## _(Q2.k)_
+
+```{r}
+
+model_slope <- lm_string$coefficients[[2]]
+test_slope <- with(stringData, cor(length, weight) * sd(length) / sd(weight))
+
+```
+
+$$ \beta_{1} = r \cdot \frac{sd(length)}{sd(weight)} $$
+
 
 
 # _(Q3)_
 
 ## _(Q3.a)_
+
+```{r}
+
+sig_level <- .05
+n_tests <- length(unique(wcgs$height))
+test_threshold <- sig_level / n_tests
+
+
+```
+
+
 ## _(Q3.b)_
+
 ## _(Q3.c)_
+
+```{r}
+
+lm_wcgs <- lm(weight ~ height, data = wcgs)
+
+inf_tbl_wcgs <-
+  bind_cols(broom::tidy(lm_wcgs), broom::confint_tidy(lm_wcgs)) %>%
+  slice(-1) %>%
+  select(-std.error, -statistic) %>%
+  magrittr::set_colnames(c("Term", "Point est.", "P-val", "2.5%", "95.7%")) %>%
+  mutate(`P-val` = format(`P-val`, digits = 3))
+
+knitr::kable(
+  inf_tbl_wcgs,
+  booktabs = TRUE,
+  digits = 3,
+  caption = paste("")
+)
+
+```
+
+```{r}
+
+scatter_wcgs <- ggplot(wcgs, aes(x = height, y = weight)) +
+  geom_point(size = 2, shape = 1) +
+  labs(
+    title = "Scatter of Weight vs Height Data",
+    x = "Height (in.)",
+    y = "Weight (lbs.)"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+
+scatter_wcgs
+
+```
+
+
 ## _(Q3.d)_
 ## _(Q3.e)_
 ## _(Q3.f)_
 ## _(Q3.g)_
 ## _(Q3.h)_
 ## _(Q3.i)_
+
+```{r}
+
+lm_wcgs_metric <- lm(weight_kg ~ height_cm, data = wcgs)
+
+```
+
 
