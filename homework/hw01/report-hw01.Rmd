@@ -34,7 +34,7 @@ wcgs <-
 
 ## _(Q1.a)_
 
-This study is an observational study, as it looks at the results a clinical
+This study is an observational study, as it is looking at the results a clinical
 study, not performing the clinical study itself.
 
 ## _(Q1.b)_
@@ -92,7 +92,8 @@ $-10$-ounce weight is impossible in the real world.
 
 ## _(Q2.h)_
 
-TBD
+I would prefer the estimate, as that accounts for errors in the measurement of
+our data points.
 
 ## _(Q2.i)_
 
@@ -111,11 +112,22 @@ knitr::kable(
   inf_tbl_string,
   booktabs = TRUE,
   digits = 3,
-  caption = paste("")
+  caption = paste("Inference table for regression slope.")
 )
+
+str_length <- round(lm_string$coefficients[[1]], 3)
+str_weight <- round(lm_string$coefficients[[2]], 3)
 
 ```
 
+When fit using the provided data, we estimate the length of the unweighted
+string ($\hat{\alpha}$) to be **`r str_length` inches**, and the difference
+in length between two attached weights one ounce apart ($\hat{\beta}$) is
+estimated to be **`r str_weight` inches**. With $95\%$ confidence, we estimate
+the true difference in length between groups per ounce to be as reported in the
+above table (_table 1_). The reported _P-value_ suggests that we reject the
+null hypothesis that attached weight does not affect the length of the hanging
+string.
 
 
 ## _(Q2.j)_
@@ -129,10 +141,19 @@ TBD
 model_slope <- lm_string$coefficients[[2]]
 test_slope <- with(stringData, cor(length, weight) * sd(length) / sd(weight))
 
+slope_diff <- format(model_slope - test_slope, digits = 3)
+
 ```
+
+With $r$ defined as the correlation between length and weight, we can find
+$\beta_{1}$ using the equation:
 
 $$ \beta_{1} = r \cdot \frac{sd(length)}{sd(weight)} $$
 
+Comparing this value to the slope produced by the linear regression, we find
+that the difference in values is **`r slope_diff`**, which is as close to
+zero as the limits of machine precision will allow. Therefore, these two
+methods produce the same result.
 
 
 # _(Q3)_
@@ -145,11 +166,23 @@ sig_level <- .05
 n_tests <- length(unique(wcgs$height))
 test_threshold <- sig_level / n_tests
 
-
 ```
+
+In order to test the association between height and weight for every unique
+integer height in the data, Chris will need to perform **`r n_tests`**
+_t_-tests. If he wants an overall significance level of $\alpha = 0.05$, then
+each individual test will need a significance threshold of
+$\alpha^{c} = \alpha \div n$ = `r format(test_threshold, digits = 3)`.
 
 
 ## _(Q3.b)_
+
+The merit of Angela’s approach is dichotomizing the heights into two groups
+means there are fewer test to perform with larger samples. The issue with
+arbitrary binning is that it ignores the relationship between data points on the
+edge of the threshold. Also, she is basing her model on what will give the most
+significant results, instead of using setting up the model to model the actual
+phenomena.
 
 ## _(Q3.c)_
 
@@ -173,6 +206,11 @@ knitr::kable(
 
 ```
 
+From the fitted model, we estimate that the difference in weight between two
+groups differing by one inch in height is **4.446 inches**. We are 95% confident
+that the true difference is between **4.2** and **4.693** inches, and that this
+result would be highly unlikely to observe if there was no true association.
+
 ```{r}
 
 scatter_wcgs <- ggplot(wcgs, aes(x = height, y = weight)) +
@@ -191,16 +229,51 @@ scatter_wcgs
 
 
 ## _(Q3.d)_
+
+From this limited data, I think there is at least a first-order linear trend.
+Using a linear model, we can only look at linear trends, so any additional
+relationship is unobservable in this data. This means that in our summary
+we can't say that the relationship is linear, only that there are at least
+linear trends.
+
 ## _(Q3.e)_
+
+In the lower and upper ends of height, the distribution of weights is
+more narrow, suggesting that the assumption of homoscedasticity is not valid.
+
 ## _(Q3.f)_
+
+Since data with a height of 70 inches was in the range of data used to fit the
+model, it is reasonable to use the model to estimate this height.
+
 ## _(Q3.g)_
+
+It is less reasonable
+
 ## _(Q3.h)_
+
+It is unreasonable, as this is a different population than was fit with the model.
+
 ## _(Q3.i)_
 
 ```{r}
 
 lm_wcgs_metric <- lm(weight_kg ~ height_cm, data = wcgs)
 
+inf_tbl_wcgs_m <-
+  bind_cols(broom::tidy(lm_wcgs_metric), broom::confint_tidy(lm_wcgs_metric)) %>%
+  slice(-1) %>%
+  select(-std.error, -statistic) %>%
+  magrittr::set_colnames(c("Term", "Point est.", "P-val", "2.5%", "95.7%")) %>%
+  mutate(`P-val` = format(`P-val`, digits = 3))
+
+knitr::kable(
+  inf_tbl_wcgs_m,
+  booktabs = TRUE,
+  digits = 3,
+  caption = paste("wcgs model in metric")
+)
+
 ```
 
-
+We see that changing the units doesn't affect the p-values of the model.
