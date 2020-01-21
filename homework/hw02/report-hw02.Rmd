@@ -1,0 +1,101 @@
+---
+title: "Homework 02"
+author: "Spencer Pease"
+date: "1/22/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+# Set output options
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '-')
+
+# Include libraries
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(uwIntroStats)
+
+# Helper functions
+source("functions/summary_table.R")
+
+# Prepare data
+mri <- read_table2("data/mri.txt") %>% select(age, atrophy)
+fev <- read_csv("data/FEVdata.csv") %>% transmute(fev = FEV, smoke = 2 - SMOKE)
+
+```
+
+# _(Q1)_
+
+```{r}
+mri_summary <- summary_table(mri)
+
+knitr::kable(
+  mri_summary, booktabs = TRUE, digits = 3,
+  caption = "Summary statistics for age and atrophy score distributions"  
+)
+
+```
+
+
+
+```{r}
+
+mri_scatter <- ggplot(mri, aes(x = age, y = atrophy)) + 
+  geom_point(size = 2, alpha = .4) +
+  labs(
+    title = "Atrophy vs Age",
+    x = "Age (years)",
+    y = "Atrophy Score (unit value)"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+
+mri_scatter
+```
+
+# _(Q2)_
+
+```{r}
+mri_lm <- regress("mean", atrophy ~ age, data = mri)
+```
+
+
+## _(Q2.a)_
+## _(Q2.b)_
+## _(Q2.c)_
+
+# _(Q3)_
+
+```{r}
+mri_lm_geo <- regress("geometric mean", atrophy ~ age, data = mri)
+```
+
+## _(Q3.a)_
+## _(Q3.b)_
+## _(Q3.c)_
+
+# _(Q4)_
+
+## _(Q4.a)_
+## _(Q4.b)_
+
+# _(Q5)_
+
+# _(Q6)_
+
+```{r}
+
+
+fev_tt_ev <- t.test(fev ~ smoke, data = fev, var.equal = TRUE)
+fev_tt_nv <- t.test(fev ~ smoke, data = fev, var.equal = FALSE)
+fev_lm_ev <- lm(fev ~ smoke, data = fev)
+fev_lm_nv <- regress("mean", fev ~ smoke, data = fev)
+
+```
+
+
+## _(Q6.a-f)_
+
+# _(Q7)_
