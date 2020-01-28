@@ -1,0 +1,47 @@
+---
+title: "Homework 03"
+author: "Spencer Pease"
+date: "1/29/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+# Set output options
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '-')
+
+# Include libraries
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(uwIntroStats)
+
+# Helper functions
+
+
+# Prepare data
+wcgs <- read_csv("data/wcgs.csv") %>% 
+  select(age, height, sbp) %>% 
+  mutate(age55_plus = as.integer(age >= 55))
+twins <- read_csv("data/TWINS.csv") %>% select(hwage, educ)
+
+```
+
+# _(Q1)_
+
+## _(Q1.a)_
+## _(Q1.b)_
+
+
+# _(Q2)_
+
+## _(Q2.a)_
+## _(Q2.b)_
+## _(Q2.c)_
+## _(Q2.d)_
+## _(Q2.e)_
+## _(Q2.f)_
+
+
+## _(Q3)_
