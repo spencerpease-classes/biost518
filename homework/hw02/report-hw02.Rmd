@@ -26,23 +26,30 @@ fev <- read_csv("data/FEVdata.csv") %>% transmute(fev = FEV, smoke = 2 - SMOKE)
 
 ```
 
-# _(Q1)_
+# _(Q1)_ MRI - Descriptive Statistics
 
 ```{r}
 mri_summary <- summary_table(mri)
 
 knitr::kable(
   mri_summary, booktabs = TRUE, digits = 3,
-  caption = "Summary statistics for age and atrophy score distributions"  
+  caption = "Summary statistics for age and atrophy score distributions"
 )
 
 ```
 
-
+These summary statistics give us some basic insight into the distribution of
+age and atrophy score. From the mean and median, we can tell both distributions
+have a slight right skew, but are approximately centered between the first and
+third quartile. Along with the IQR, the standard deviation indicates that
+atrophy score has a wider distribution than age, though this does not give
+insight into their relationship becuase of the incomparable units. To
+understand how these two distributions relate to each other, we can also look
+at a scatter plot of the data:
 
 ```{r}
 
-mri_scatter <- ggplot(mri, aes(x = age, y = atrophy)) + 
+mri_scatter <- ggplot(mri, aes(x = age, y = atrophy)) +
   geom_point(size = 2, alpha = .4) +
   labs(
     title = "Atrophy vs Age",
@@ -55,18 +62,19 @@ mri_scatter <- ggplot(mri, aes(x = age, y = atrophy)) +
 mri_scatter
 ```
 
-# _(Q2)_
+# _(Q2)_ MRI - Linear Regression of Mean
 
 ```{r}
 mri_lm <- regress("mean", atrophy ~ age, data = mri)
 ```
 
+$$ E[atrophy | age] = \hat{\beta_{0}} + \hat{\beta_{1}} \times age $$
 
 ## _(Q2.a)_
 ## _(Q2.b)_
 ## _(Q2.c)_
 
-# _(Q3)_
+# _(Q3)_ MRI - Linear Regression of Geometric Mean
 
 ```{r}
 mri_lm_geo <- regress("geometric mean", atrophy ~ age, data = mri)
@@ -76,14 +84,14 @@ mri_lm_geo <- regress("geometric mean", atrophy ~ age, data = mri)
 ## _(Q3.b)_
 ## _(Q3.c)_
 
-# _(Q4)_
+# _(Q4)_ Sensible Units
 
 ## _(Q4.a)_
 ## _(Q4.b)_
 
-# _(Q5)_
+# _(Q5)_ Scaling Variables
 
-# _(Q6)_
+# _(Q6)_ FEV - t-Test vs Regression Analysis
 
 ```{r}
 
@@ -98,4 +106,4 @@ fev_lm_nv <- regress("mean", fev ~ smoke, data = fev)
 
 ## _(Q6.a-f)_
 
-# _(Q7)_
+# _(Q7)_ FEV - Validity of Analysis
