@@ -18,30 +18,253 @@ library(ggplot2)
 library(uwIntroStats)
 
 # Helper functions
-
+source("functions/summary_table.R")
 
 # Prepare data
-wcgs <- read_csv("data/wcgs.csv") %>% 
-  select(age, height, sbp) %>% 
-  mutate(age55_plus = as.integer(age >= 55))
-twins <- read_csv("data/TWINS.csv") %>% select(hwage, educ)
+wcgs <- read_csv("data/wcgs.csv") %>%
+  select(age, height, sbp) %>%
+  mutate(
+    age = factor(age >= 55, levels = c(FALSE, TRUE), labels = c("young", "old"), ordered = TRUE),
+    age_int = as.integer(age) - 1
+  )
+
+twins <- read_csv("data/TWINS.csv") %>%
+  select(educ, hwage) %>%
+  filter(!is.na(hwage)) %>%
+  mutate(log_hwage = log(hwage))
 
 ```
 
-# _(Q1)_
+# _(Q1)_ Trends in Dichotomized Age
+
+In this question, we classify observations with ages below $55$ years as _young_
+and ages $55$ years or greater as _old_. In regression models we will fit the
+binary variable $age$ with $young = 0$ and $old = 1$.
 
 ## _(Q1.a)_
+
+```{r}
+age_height_st <- wcgs %>%
+  select(age, height) %>%
+  group_by(age) %>%
+  summary_table()
+
+age_height_plot <- ggplot(wcgs, aes(x = age, y = height, group = age)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "Distribution of Heights Dichotomized by Age",
+    x = "Dichotomized Age",
+    y = "Height (inches)"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+
+```
+
+We first look at the distribution of heights between age groups:
+
+```{r}
+knitr::kable(
+  age_height_st, booktabs = TRUE, digits = 3,
+  caption = "Summary statistics for height by dichotomized age"
+)
+```
+
+```{r, fig.height=2.5}
+age_height_plot
+```
+
+From this we can predict that a simple linear regression will show a change in
+age group from young to old is associated a slight decrease in height. Given
+that there are more observations in the _young_ age group, which has a larger
+variance, the model-based standard error estimates will be conservative (larger).
+The difference between the variances is small enough that the conservative
+nature of the model will be slight.
+
+```{r}
+age_height_lm <- regress("mean", height ~ age_int, data = wcgs)
+
+age_height_coef <- as_tibble(age_height_lm$coefficients)[2, 1:3]
+
+knitr::kable(
+  age_height_coef, booktabs = TRUE, digits = 3,
+  caption = "Inference table for height by dichotomized age"
+)
+
+```
+
+Fitting the model $E(height | age) = \beta_{0} + \beta_{1} \cdot age$ and
+comparing the model-based standard error estimates to the robust standard error
+estimates show that this is the case: The model-based $SE$ is slightly
+conservative.
+
+
 ## _(Q1.b)_
 
+```{r}
+age_sbp_st <- wcgs %>%
+  select(age, sbp) %>%
+  group_by(age) %>%
+  summary_table()
 
-# _(Q2)_
+age_sbp_plot <- ggplot(wcgs, aes(x = age, y = sbp, group = age)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "Distribution of SBP Dichotomized by Age",
+    x = "Dichotomized Age",
+    y = "SBP (mmHg)"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+
+```
+
+We can also look at the distribution of  systolic blood pressure between age
+groups:
+
+```{r}
+knitr::kable(
+  age_sbp_st, booktabs = TRUE, digits = 3,
+  caption = "Summary statistics for SBP by dichotomized age"
+)
+```
+
+```{r, fig.height=2.5}
+age_sbp_plot
+```
+
+This distribution indicates that a simple linear regression will show a positive
+difference in _SBP_ in the direction of increased age. Since the young age
+group has more observations, the variance of SBP in this group will influence
+the model-based standard error estimates. In this case the young group has
+smaller variance, so the model-based _SE_ estimates will be anti-conservative
+(smaller).
+
+```{r}
+age_sbp_lm <- regress("mean", sbp ~ age_int, data = wcgs)
+
+age_sbp_coef <- as_tibble(age_sbp_lm$coefficients)[2, 1:3]
+
+knitr::kable(
+  age_sbp_coef, booktabs = TRUE, digits = 3,
+  caption = "Inference table for SBP by dichotomized age"
+)
+
+```
+
+Fitting the model $E(sbp | age) = \beta_{0} + \beta_{1} \cdot sbp$ and
+comparing the model-based standard error estimates to the robust standard error
+estimates confirms this: the model-based $SE$ is anti-conservative.
+
+
+# _(Q2)_ Education and Economic Benefit
 
 ## _(Q2.a)_
+
+```{r}
+edu_lm <- regress("mean", log_hwage ~ educ, data = twins)
+
+edu_coef <- as_tibble(edu_lm$coefficients)[2, -2]
+edu_beta <- edu_lm$coefficients[, 1]
+edu_ci <- edu_lm
+
+knitr::kable(
+  edu_coef, booktabs = TRUE, digits = 3,
+  caption = "Inference table for the association between log(wage) and years of education"
+)
+
+```
+
+For this question, we fit a simple linear regression using robust standard
+error estimates with years of education as the predictor of interest and and
+log-transformed hourly wage as the response. Robust standard error estimates
+was chosen over classical model-based estimates because it relaxes the assumption
+that all levels of the predictor have the same variance in response. From the
+model we estimate an first-order trend with an intercept of
+`r round(edu_beta[1], 3)` log-dollar hourly wage for zero years of education,
+and a `r round(edu_beta[2], 3)` log-dollar difference in log-wage for every
+additional year of education.
+
+While the $95\%$ confidence interval and _P_-value (see above table) suggest
+that this association between $log(wage)$ and years of education is
+statistically significant, a real-world spot check of the model makes us think
+it unlikely that this trend is determined completely by years of education,
+especially at lower values. These results are likely confounded with age, and
+at some point there have to be diminishing returns on the value and additional
+year of education provides, meaning the first-order trend probably doesn't
+describe the entire relationship.
+
 ## _(Q2.b)_
+
+Our linear model does not have any power to suggest a causal relationship
+between years of education and $log(wage)$, so it is not an appropriate
+question to ask how much completing additional years of education will increase
+her wage.
+
 ## _(Q2.c)_
+
+```{r}
+edu_est_12 <-
+  predict(edu_lm, interval = "confidence", newdata = data.frame(educ=12)) %>%
+  as_tibble() %>%
+  setNames(c("Estimate", "2.5%", "97.5%"))
+
+knitr::kable(
+  edu_est_12, booktabs = TRUE, digits = 3,
+  caption = "Model estimated mean log(wage) for 12 years of education"
+)
+```
+
 ## _(Q2.d)_
+
+```{r}
+wage_12 <- twins %>% filter(educ == 12) %>% pull(log_hwage)
+t_crit <- abs(qt(0.05/2, length(wage_12) - 1))
+
+wage_12_ci <- t_crit * sd(wage_12) / sqrt(length(wage_12))
+```
+
+Another way to construct an estimate confidence interval is with the formula:
+
+$$ \bar{X} \pm critval(t_{n-1}) \times \frac{\hat{SD}(X)}{\sqrt{n}} $$
+
+Using this formula, we estimate with a$95\%$ confidence interval that the mean
+$log(wage)$ for 12 years of education is:
+`r round(mean(wage_12), 3)` +/- `r round(wage_12_ci, 3)`
+
 ## _(Q2.e)_
+
+```{r}
+edu_pred_12 <-
+  predict(edu_lm, interval = "prediction", newdata = data.frame(educ=12)) %>%
+  as_tibble() %>%
+  setNames(c("Prediction", "2.5%", "97.5%"))
+
+knitr::kable(
+  edu_pred_12, booktabs = TRUE, digits = 3,
+  caption = "Model predicted mean log(wage) for 12 years of education"
+)
+```
+
 ## _(Q2.f)_
 
+```{r}
+wage_12 <- twins %>% filter(educ == 12) %>% pull(log_hwage)
+t_crit <- abs(qt(0.05/2, length(wage_12) - 1))
+
+wage_12_pi <- t_crit * sd(wage_12) / sqrt(1 + (1/length(wage_12)))
+```
+
+Another way to construct a $95\%$ prediction interval is with the formula:
+
+$$ \bar{X} \pm critval(t_{n-1}) \times \hat{SD}(X) \sqrt{1 + \frac{1}{n}} $$
+
+Using this formula, we predict with $95\%$ confidence that the $log(wage)$ for
+an individual with 12 years of education is:
+`r round(mean(wage_12), 3)` +/- `r round(wage_12_pi, 3)`
 
 ## _(Q3)_
+
+_Ignored_
