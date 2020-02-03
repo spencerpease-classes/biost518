@@ -19,29 +19,197 @@ library(uwIntroStats)
 
 # Helper functions
 source("functions/summary_table.R")
+source("functions/inference_table.R")
 
 # Prepare data
 smsa <- read_csv("data/SMSA.csv") %>%
-  select(mortality = Mortality, nox = NOx, rain = Rain) %>%
-  mutate(log_nox = log(nox), low_rain = as.integer(rain < 20))
+  select(mort = Mortality, nox = NOx, rain = Rain) %>%
+  mutate(
+    log_nox = log(nox),
+    low_rain = factor(rain < 20, levels = c(TRUE, FALSE), labels = c("Low Rain*", "Other"))
+  )
 
-mri2 <- read_csv("data/MRI2.csv") %>% select(age, weight, male)
+mri2 <- read_csv("data/MRI2.csv") %>%
+  select(height, weight, male) %>%
+  mutate(sex = factor(male, levels = c(0, 1), labels = c("Female", "Male")))
 
 ```
 
 # _(Q1)_
+
+```{r}
+mort_nox_scatter <- ggplot(smsa, aes(x = log_nox, y = mort)) +
+  labs(
+    title = "Mortality vs NOx Level",
+    x = "log(NOx)",
+    y = "Mortality"
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "top"
+  )
+
+```
+
+```{r}
+mort_nox_scatter + geom_point()
+```
+
+The scatter of _mortality_ vs $log(NOx)$ shows at least a small positive
+first-order trend. There are four locations however that shun this trend and
+maintain lower mortality for comparatively high $log(NOx)$ levels.
+
 # _(Q2)_
+
+Regression model:
+
+$$ E[mortality | log(NOx)] = \beta_{0} + \beta_{1} \times log(NOx) $$
+
+```{r}
+mort_nox_lm <- regress("mean", mort ~ log_nox, data = smsa)
+
+mort_nox_inf_tbl <- inference_table(mort_nox_lm, paramter_names = "log(NOx)")
+
+knitr::kable(mort_nox_inf_tbl, booktabs = TRUE, digits = 3,
+  caption = "Inferential statistics of Mortality vs log(NOx)"
+)
+
+q2 <- list(
+  round(mort_nox_inf_tbl[[1, 2]], 2),
+  round(mort_nox_inf_tbl[[1, 4]], 2),
+  round(mort_nox_inf_tbl[[1, 5]], 2),
+  round(mort_nox_inf_tbl[[1, 7]], 2)
+)
+
+```
+
+Using the above linear regression model with robust standard error estimates to
+assess the first-order relationship between mortality and $log(NOx)$, we
+estimate that an increase in one unit $log(NOx)$ is associated with a `r q2[[1]]`
+unit increase in mortality ($95\%$ CI: `r q2[[2]]`, `r q2[[3]]`). A _P_-value
+greater than $.05$ suggests this relationship is not statistically significant.
+
 # _(Q3)_
+
+Using robust standard error estimates avoids the assumption of equal variance
+within each group of our data (homoscedasticity), meaning the model makes fewer
+assumptions about the data in general.
+
+This model is still based on the assumptions that the data are independent and
+the sample size is sufficiently large for the central limit theorem to apply when
+testing associations. The point estimate and confidence interval also rely on
+the assumption that the model is a good fit to the true distribution.
+
 # _(Q4)_
+
+```{r}
+mort_nox_scatter +
+  geom_point(aes(color = low_rain)) +
+  labs(caption = "*Low Rain: < 20 inches of rain per year") +
+  scale_color_manual(name = NULL, values = c("salmon", "black"))
+```
+
+Rainfall should be a confounder
+
+
 # _(Q5)_
+
+Regression model:
+
+$$ E[mortality | log(NOx), rain] = \beta_{0} + \beta_{1} \times log(NOx) + \beta_{2} \times rain $$
+
+```{r}
+mort_nox_rain_lm <- regress("mean", mort ~ log_nox + rain, data = smsa)
+
+mort_nox_rain_inf_tbl <- mort_nox_rain_lm %>%
+  inference_table(paramter_names = c("log(NOx)", "Rain")) %>%
+  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+
+knitr::kable(mort_nox_rain_inf_tbl, booktabs = TRUE, digits = 3,
+  caption = "Inferential statistics of Mortality vs log(NOx), adjusted for Rain"
+)
+
+```
+
 # _(Q6)_
+
+
+
 # _(Q7)_
+
 # _(Q8)_
+
 ## _(Q8.a)_
+
+```{r}
+weight_height_scatter <- ggplot(mri2, aes(x = height, y = weight)) +
+  geom_point(aes(color = sex), shape = 1, alpha = .4) +
+  stat_smooth(aes(color = sex), method = "lm", se = FALSE) +
+  stat_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "black") +
+  labs(
+    title = "Weight vs Height",
+    x = "Height (cm)",
+    y = "Weight (lbs)",
+    caption = "Colored sex-specific regression lines; dashed both-sex regression line",
+    color = NULL
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "top"
+  )
+```
+
+```{r}
+weight_height_scatter
+```
+
+```{r}
+
+weight_height_lms <- list(
+  both = regress("mean", weight ~ height, data = mri2),
+  male = regress("mean", weight ~ height, data = filter(mri2, male == 1)),
+  female = regress("mean", weight ~ height, data = filter(mri2, male == 0))
+)
+
+weight_height_comb_inf_tbl <- weight_height_lms %>%
+  purrr::imap_dfr(~inference_table(lm = .x, paramter_names = .y)) %>%
+  mutate(
+    `Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3),
+    Data = Parameter,
+    Parameter = "Height"
+  ) %>%
+  select(Data, everything())
+
+knitr::kable(weight_height_comb_inf_tbl, booktabs = TRUE, digits = 3,
+  caption = paste("Inferential statistics of Weight vs Height for separate models",
+                  "containing both sexes and individual sex data subsets")
+)
+
+```
+
 ## _(Q8.b)_
+
+
+
 ## _(Q8.c)_
 ## _(Q8.d)_
 ## _(Q8.e)_
 ## _(Q8.f)_
-# _(Q9)_
 
+```{r}
+weight_height_sex_lm <- regress("mean", weight ~ height + male, data = mri2)
+
+weight_height_sex_inf_tbl <- weight_height_sex_lm %>%
+  inference_table() %>%
+  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+
+knitr::kable(weight_height_sex_inf_tbl, booktabs = TRUE, digits = 3,
+  caption = "Inferential statistics of Weight vs Height, adjusted for Sex"
+)
+
+```
+
+
+# _(Q9)_
