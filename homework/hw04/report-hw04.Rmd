@@ -110,20 +110,21 @@ mort_nox_scatter +
   scale_color_manual(name = NULL, values = c("salmon", "black"))
 ```
 
-Rainfall should be a confounder
-
+Rainfall should be a confounder, since it appears to have an association with
+both _NOx_ pollution level and mortality. It doesn't make sense for pollution
+to determine rainfall, so rain is not in the casual pathway of interest.
 
 # _(Q5)_
 
 Regression model:
 
-$$ E[mortality | log(NOx), rain] = \beta_{0} + \beta_{1} \times log(NOx) + \beta_{2} \times rain $$
+$$ E[mortality | log(NOx), rain] = \beta_{0} + \beta_{1} \times log(NOx) + \beta_{2} \times rain + \beta_{3} \times log(NOx) \cdot rain $$
 
 ```{r}
-mort_nox_rain_lm <- regress("mean", mort ~ log_nox + rain, data = smsa)
+mort_nox_rain_lm <- regress("mean", mort ~ log_nox + rain + log_nox * rain, data = smsa)
 
 mort_nox_rain_inf_tbl <- mort_nox_rain_lm %>%
-  inference_table(paramter_names = c("log(NOx)", "Rain")) %>%
+  inference_table(paramter_names = c("log(NOx)", "Rain", "Log(NOx):Rain")) %>%
   mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
 
 knitr::kable(mort_nox_rain_inf_tbl, booktabs = TRUE, digits = 3,
