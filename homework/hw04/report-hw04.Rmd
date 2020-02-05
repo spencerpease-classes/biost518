@@ -192,11 +192,42 @@ knitr::kable(weight_height_comb_inf_tbl, booktabs = TRUE, digits = 3,
 
 ## _(Q8.b)_
 
-
+Scientifically, sex is an important variable to consider when predicting weight
+from height. It is well documented that a person's sex plays a role in their
+expected height and weight. Regardless if sex has a statistically significant
+role in our sample, our model should reflect what we expect in the true
+population. To exclude sex from our model would be to ignore a documented
+phenomena in our population.
 
 ## _(Q8.c)_
+
+The estimated slopes from the sex-specific models are nearly identical,
+suggesting that the relationship between weight and height is similar for both
+males and females.
+
+```{r}
+height_sex_tbl <- mri2 %>%
+  select(male, height) %>%
+  group_by(male) %>%
+  summary_table()
+
+knitr::kable(height_sex_tbl, booktabs = TRUE, digits = 3,
+  caption = "Summary of distribution of heights by sex"
+)
+```
+
+From the data in our sample, we see that males have a greater height than
+females on average. This means there is likely an interaction between height
+and sex.
+
 ## _(Q8.d)_
+
+Altogether, sex plays the role of an effect modifier.
+
 ## _(Q8.e)_
+
+
+
 ## _(Q8.f)_
 
 ```{r}
