@@ -110,9 +110,10 @@ mort_nox_scatter +
   scale_color_manual(name = NULL, values = c("salmon", "black"))
 ```
 
-Rainfall should be a confounder, since it appears to have an association with
-both _NOx_ pollution level and mortality. It doesn't make sense for pollution
-to determine rainfall, so rain is not in the casual pathway of interest.
+Rainfall should be an effect modifier, since it appears to have an association
+with both _NOx_ pollution level and mortality. It doesn't make sense for
+pollution to determine rainfall, so rain is not in the casual pathway of
+interest.
 
 # _(Q5)_
 
@@ -131,13 +132,43 @@ knitr::kable(mort_nox_rain_inf_tbl, booktabs = TRUE, digits = 3,
   caption = "Inferential statistics of Mortality vs log(NOx), adjusted for Rain"
 )
 
+q6 <- mort_nox_rain_inf_tbl[, c(2, 4, 5, 7)]
+q6[, 1:3] <- round(q6[, 1:3], 2)
+
 ```
 
 # _(Q6)_
 
-
+Fitting the model displayed in _Q5_ using robust standard error estimates, we
+produce the estimated coefficients in the above table. From these values we
+estimate that for a location with no rainfall, one unit difference in $log(NOx)$
+will change mortality by `r q6[1, 1]` units ($95\%$ CI: `r q6[1, 2:3]`).
+Between two groups with a one inch per year difference in rainfall and equal
+$log(NOx)$, mortality will in change by `r q6[2, 1]` units
+($95\%$ CI: `r q6[2, 2:3]`). However, when comparing two groups that differ by
+one unit in both rainfall per year and $log(NOx)$, the resulting change in
+difference in mortality is `r sum(q6[, 1])` units, Which is less negative than
+just the sum of the $log(NOx)$ and rain coefficients. Of all of these
+estimates, rainfall on its own is not statistically significant. Overall, the
+relationship between mortality and $log(NOx)$ tends to be negative unless there
+is a significant difference in amount of rainfall (approximately 16 inches per
+year) between two groups.
 
 # _(Q7)_
+
+```{r}
+
+aridia_coef <- NULL
+
+```
+
+In Aridia, less rain means that the negative impact of $NOx$ level on mortality
+is diminished. This means reducing pollution might not be as effective at
+lowering mortality as other locations with more rain.
+
+In Seattle, large amounts of rain increase the impact of $NOx$ on mortality, so
+lowering pollution will have a larger impact on mortality.
+
 
 # _(Q8)_
 
@@ -222,11 +253,15 @@ and sex.
 
 ## _(Q8.d)_
 
-Altogether, sex plays the role of an effect modifier.
+Altogether, sex plays the role of a confounder.
 
 ## _(Q8.e)_
 
-
+The estimated slope of the both-sex regression is slightly greater than both of
+the estimated sex-specific regression slopes. Since the both-sex regression
+includes both the larger heights and weights of the males and the lower heights
+and weights of the females, the model $\beta_{1}$ will represent this more
+extreme range of data as a greater estimated slope.
 
 ## _(Q8.f)_
 
@@ -243,5 +278,22 @@ knitr::kable(weight_height_sex_inf_tbl, booktabs = TRUE, digits = 3,
 
 ```
 
+The estimated slope of the multiple regression model nearly matches the
+estimated slopes of the sex specific models. This is what we would expect, since
+adjusting for sex allows the model to capture separately the range of height
+and weight values associated with each sex while maintaining the same
+relationship between the two variables across sexes.
 
 # _(Q9)_
+
+The denominator of (4.4) includes the term $(1 - r^{2}_{X,W})$, which will
+increase in magnitude (and thereby decrease $var(\hat{\gamma_{1}})$) as the
+correlation between $X$ and $W$ decreases. In this scenario $X$ is the treatment
+and $W$ is diabetes, which are uncorrelated with each other. This minimizes
+$r^{2}_{X,W}$, which decreases the variance of our estimated coefficient
+overall, creating a more efficient model for estimation.
+
+Checking for an interaction between the treatment and diabetes in this analysis
+is a good idea, because if there is an interaction between the two then it
+would change the scientific question we should be asking since we would know
+more about the behavior of our population.
