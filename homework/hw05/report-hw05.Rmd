@@ -18,10 +18,12 @@ library(ggplot2)
 library(uwIntroStats)
 
 # Helper functions
+source("functions/summary_table.R")
+source("functions/inference_table.R")
 
 # Prepare data
-mri <- read_table2("data/mri.txt") %>% 
-  select(age, sbp, male, race) %>% 
+mri <- read_table2("data/mri.txt") %>%
+  select(age, sbp, male, race) %>%
   mutate(
     sex = factor(male, levels = c(0, 1), labels = c("Female", "Male")),
     race_fac = factor(race, levels = 1:4, labels = c("White", "Black", "Asian", "Other"))
@@ -32,16 +34,45 @@ mri <- read_table2("data/mri.txt") %>%
 # _(Q1)_  Systolic blood pressure by age and sex
 
 ## _(Q1.a)_
+
+```{r}
+sbp_age_scatter <- ggplot(mri, aes(x = age, y = sbp, color = sex)) +
+  geom_point(shape = 1, alpha = .5) +
+  stat_smooth(method = "loess", se = FALSE) +
+  labs(title = "SBP vs Age", x = "Age (years)", y = "SBP (mmHg)") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"), legend.position = "top")
+```
+
+```{r}
+sbp_age_scatter
+```
+
 ## _(Q1.b)_
+
 ## _(Q1.c)_
+
+```{r}
+sbp_age_sex_lm <- regress("mean", sbp ~ age * male, data = mri)
+sbp_age_sex_lm_inf <-
+  inference_table(sbp_age_sex_lm, include_intercept = TRUE) %>%
+  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+
+knitr::kable(sbp_age_sex_lm_inf, booktabs = TRUE, digits = 3,
+  caption = "Inferential statistics of SBP vs age, adjusted for sex"
+)
+
+```
+
+
 ## _(Q1.d)_
 
-# _(Q2)_ Systolic blood pressure by age and race 
+# _(Q2)_ Systolic blood pressure by age and race
 
 ## _(Q2.a)_
 ## _(Q2.b)_
 
-# _(Q3)_ Systolic blood pressure by age, sex, and race 
+# _(Q3)_ Systolic blood pressure by age, sex, and race
 
 ## _(Q3.a)_
 ## _(Q3.b)_
