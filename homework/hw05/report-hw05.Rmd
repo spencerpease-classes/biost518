@@ -26,8 +26,17 @@ mri <- read_table2("data/mri.txt") %>%
   select(age, sbp, male, race) %>%
   mutate(
     sex = factor(male, levels = c(0, 1), labels = c("Female", "Male")),
-    race_fac = factor(race, levels = 1:4, labels = c("White", "Black", "Asian", "Other"))
-  )
+    race = factor(race, levels = 1:4, labels = c("w", "b", "a", "other")),
+    race2 = race
+  ) %>%
+  tidyr::pivot_wider(
+    names_from = "race2",
+    values_from = "race2",
+    names_prefix = "R",
+    values_fn = list(race2 = length),
+    values_fill = list(race2 = 0)
+  ) %>%
+  select(-Rother)
 
 ```
 
@@ -53,7 +62,7 @@ sbp_age_scatter
 ## _(Q1.c)_
 
 ```{r}
-sbp_age_sex_lm <- regress("mean", sbp ~ age * male, data = mri)
+sbp_age_sex_lm <- regress("mean", sbp ~ age*male, data = mri)
 sbp_age_sex_lm_inf <-
   inference_table(sbp_age_sex_lm, include_intercept = TRUE) %>%
   mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
@@ -70,12 +79,64 @@ knitr::kable(sbp_age_sex_lm_inf, booktabs = TRUE, digits = 3,
 # _(Q2)_ Systolic blood pressure by age and race
 
 ## _(Q2.a)_
+
+Model of race-adjusted association between mean systolic blood pressure and
+age:
+
+$$
+\begin{aligned}
+E(sbp|age,R_{w},R_{b},R_{a}) &= \beta_{0} \\
+&+ \beta_{1} \cdot age \\
+&+ \beta_{2} \cdot R_{w} + \beta_{3} \cdot R_{b} + \beta_{4} \cdot R_{a} \\
+&+ (\beta_{5} \cdot R_{w} + \beta_{6} \cdot R_{b} + \beta_{7} \cdot R_{a}) \cdot age
+\end{aligned}
+$$
+
+In this model, race is encoded as:
+
+ * $R_{w}=1$ : White
+ * $R_{b}=1$ : Black
+ * $R_{a}=1$ : Asian
+ * $R_{w}=R_{b}=R_{a}=0$ : Other
+
+
 ## _(Q2.b)_
+
+```{r}
+sbp_age_race_lm <- regress("mean", sbp ~ age + age*Rw + age*Rb + age*Ra, data = mri)
+
+sbp_age_race_lm_inf <-
+  inference_table(sbp_age_race_lm, include_intercept = TRUE) %>%
+  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+
+knitr::kable(sbp_age_race_lm_inf, booktabs = TRUE, digits = 3,
+  caption = "Inferential statistics of SBP vs age, adjusted for race"
+)
+
+```
+
 
 # _(Q3)_ Systolic blood pressure by age, sex, and race
 
 ## _(Q3.a)_
+
+```{r}
+sbp_all_lm <- regress(
+  "mean",
+  sbp ~ age*male + age*Rw + age*Rb + age*Ra,
+  data = mri
+)
+```
+
 ## _(Q3.b)_
+
+```{r}
+sbp_all_pred <- predict(
+  sbp_all_lm, interval = "prediction",
+  newdata = data.frame(age = 70, male = 0, Rw = 0, Rb = 1, Ra = 0)
+)
+```
+
 ## _(Q3.c)_
 
 # _(Q4)_ Odds ratios
