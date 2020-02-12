@@ -1,7 +1,8 @@
 inference_table <- function(lm,
                             paramter_names = NULL,
                             se_type = "Robust",
-                            include_intercept = FALSE) {
+                            include_intercept = FALSE,
+                            include_test_stat = FALSE) {
 
   # Validate inputs ---------------------------------------------------------
 
@@ -41,13 +42,19 @@ inference_table <- function(lm,
 
   removed_se_types <- setdiff(valid_se_types, se_type)
 
+  if (include_test_stat) {
+    removed_cols <- removed_se_types
+  } else {
+    removed_cols <- c("t value", removed_se_types)
+  }
+
   row_start <- as.integer(!include_intercept) + 1
 
   inference_tbl <- lm[["coefficients"]] %>%
     as_tibble() %>%
     slice(row_start:length(lm[["coefficients"]])) %>%
     mutate(Parameter = paramter_names) %>%
-    select(.data$Parameter, everything(), -all_of(removed_se_types))
+    select(.data$Parameter, everything(), -all_of(removed_cols))
 
   inference_tbl
 

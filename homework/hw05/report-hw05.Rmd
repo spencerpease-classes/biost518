@@ -85,7 +85,7 @@ age:
 
 $$
 \begin{aligned}
-E(sbp|age,R_{w},R_{b},R_{a}) &= \beta_{0} \\
+E(sbp \mid age,R_{w},R_{b},R_{a}) &= \beta_{0} \\
 &+ \beta_{1} \cdot age \\
 &+ \beta_{2} \cdot R_{w} + \beta_{3} \cdot R_{b} + \beta_{4} \cdot R_{a} \\
 &+ (\beta_{5} \cdot R_{w} + \beta_{6} \cdot R_{b} + \beta_{7} \cdot R_{a}) \cdot age
@@ -120,11 +120,31 @@ knitr::kable(sbp_age_race_lm_inf, booktabs = TRUE, digits = 3,
 
 ## _(Q3.a)_
 
+Model of the association between SBP and age, ajusted for race and sex:
+
+$$
+\begin{aligned}
+E(sbp \mid age, race, sex) &= \beta_{0} \\
+&+ \beta_{1} \cdot age \\
+&+ \beta_{2} \cdot male + \beta_{3} \cdot male \cdot age \\
+&+ \beta_{4} \cdot R_{w} + \beta_{5} \cdot R_{b} + \beta_{6} \cdot R_{a} \\
+&+ (\beta_{7} \cdot R_{w} + \beta_{8} \cdot R_{b} + \beta_{9} \cdot R_{a}) \cdot age
+\end{aligned}
+$$
+
 ```{r}
 sbp_all_lm <- regress(
   "mean",
   sbp ~ age*male + age*Rw + age*Rb + age*Ra,
   data = mri
+)
+
+sbp_all_lm_inf <-
+  inference_table(sbp_all_lm, include_intercept = TRUE) %>%
+  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+
+knitr::kable(sbp_all_lm_inf, booktabs = TRUE, digits = 3,
+  caption = "Inferential statistics of SBP vs age, adjusted for race and sex"
 )
 ```
 
@@ -135,12 +155,41 @@ sbp_all_pred <- predict(
   sbp_all_lm, interval = "prediction",
   newdata = data.frame(age = 70, male = 0, Rw = 0, Rb = 1, Ra = 0)
 )
+
+colnames(sbp_all_pred) <- c("Prediction", "95%L", "95%H")
+
+knitr::kable(sbp_all_pred, booktabs = TRUE, digits = 3,
+  caption = "95% PI for SBP among 70-year-old black women"
+)
+
 ```
 
 ## _(Q3.c)_
 
+
 # _(Q4)_ Odds ratios
 
-## _(Q4.a)_
-## _(Q4.b)_
-## _(Q4.c)_
+## _(Q4.a-c)_
+
+Odds ratio for disease, given exposure:
+
+$$
+OR_{(D|E=1)}
+= \frac{Odds_{D|E=1}}{Odds_{D|E=0}}
+= \frac{P_{(D|E=1)} \div (1-P_{(D|E=1)})}{P_{(D|E=0)} \div (1-P_{(D|E=0)})}
+= \frac{d/c}{b/a}
+$$
+Odds ratio for exposure, given disease:
+
+$$
+OR_{(E|D=1)}
+= \frac{Odds_{E|D=1}}{Odds_{E|D=0}}
+= \frac{P_{(E|D=1)} \div (1-P_{(E|D=1)})}{P_{(E|D=0)} \div (1-P_{(E|D=0)})}
+= \frac{d/b}{c/a}
+$$
+
+Comparing these two odds ratios, we see they are identical:
+
+$$
+OR_{(D|E=1)} = \frac{d/c}{b/a} = \frac{ad}{bc} = \frac{d/b}{c/a} = OR_{(E|D=1)}
+$$
