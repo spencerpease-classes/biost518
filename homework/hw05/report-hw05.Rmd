@@ -26,17 +26,16 @@ mri <- read_table2("data/mri.txt") %>%
   select(age, sbp, male, race) %>%
   mutate(
     sex = factor(male, levels = c(0, 1), labels = c("Female", "Male")),
-    race = factor(race, levels = 1:4, labels = c("w", "b", "a", "other")),
-    race2 = race
+    race = factor(race, levels = c(4, 1:3), labels = c("Other", "White", "Black", "Asian")),
+    race_dummy = factor(race, labels = c("Rw", "Rb", "Ra", "Ro"))
   ) %>%
   tidyr::pivot_wider(
-    names_from = "race2",
-    values_from = "race2",
-    names_prefix = "R",
-    values_fn = list(race2 = length),
-    values_fill = list(race2 = 0)
+    names_from = "race_dummy",
+    values_from = "race_dummy",
+    values_fn = list(race_dummy = length),
+    values_fill = list(race_dummy = 0)
   ) %>%
-  select(-Rother)
+  select(-Ro)
 
 ```
 
@@ -84,30 +83,45 @@ Model of race-adjusted association between mean systolic blood pressure and
 age:
 
 $$
-\begin{aligned}
-E(sbp \mid age,R_{w},R_{b},R_{a}) &= \beta_{0} \\
-&+ \beta_{1} \cdot age \\
-&+ \beta_{2} \cdot R_{w} + \beta_{3} \cdot R_{b} + \beta_{4} \cdot R_{a} \\
-&+ (\beta_{5} \cdot R_{w} + \beta_{6} \cdot R_{b} + \beta_{7} \cdot R_{a}) \cdot age
-\end{aligned}
+E(sbp \mid age,race) = \beta_{0} + \beta_{1} \cdot age
++ \beta_{2-4} \cdot race
++ \beta_{5-7} \cdot age \cdot race
 $$
 
+where _race_ is treated as a categorical variable, with possible values _White_,
+_Black_, _Asian_, and _Other_ (treated as the reference category).
+
+<!--
 In this model, race is encoded as:
 
- * $R_{w}=1$ : White
- * $R_{b}=1$ : Black
- * $R_{a}=1$ : Asian
+ * $R_{w}=1$, $R_{b}=R_{a}=0$ : White
+ * $R_{b}=1$, $R_{w}=R_{a}=0$ : Black
+ * $R_{a}=1$, $R_{w}=R_{b}=0$ : Asian
  * $R_{w}=R_{b}=R_{a}=0$ : Other
-
+-->
 
 ## _(Q2.b)_
 
 ```{r}
-sbp_age_race_lm <- regress("mean", sbp ~ age + age*Rw + age*Rb + age*Ra, data = mri)
+old_sbp_age_race_lm <- regress("mean", sbp ~ age + age*Rw + age*Rb + age*Ra, data = mri)
 
-sbp_age_race_lm_inf <-
-  inference_table(sbp_age_race_lm, include_intercept = TRUE) %>%
+old_sbp_age_race_lm_inf <-
+  inference_table(old_sbp_age_race_lm, include_intercept = TRUE) %>%
   mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+
+sbp_age_race_lm <- regress("mean", sbp ~ age * as.factor(race), data = mri)
+
+sbp_age_race_lm_inf <- sbp_age_race_lm$model %>%
+  as.table() %>%
+  as_tibble(.name_repair = "minimal") %>%
+  setNames(c("param", "var", "val")) %>%
+  tidyr::pivot_wider(names_from = "var", values_from = "val") %>%
+  mutate(Parameter = c(
+    "Intercept", "age",
+    "race", "| race-White", "| race-Black", "| race-Asian",
+    "age:race", "| age:race-White", "| age:race-Black", "| age:race-Asian"
+  )) %>%
+  select(Parameter, df, everything(), -`F stat`, -param, -`Naive SE`)
 
 knitr::kable(sbp_age_race_lm_inf, booktabs = TRUE, digits = 3,
   caption = "Inferential statistics of SBP vs age, adjusted for race"
@@ -120,28 +134,46 @@ knitr::kable(sbp_age_race_lm_inf, booktabs = TRUE, digits = 3,
 
 ## _(Q3.a)_
 
-Model of the association between SBP and age, ajusted for race and sex:
+Model of the association between SBP and age, adjusted for race and sex:
 
+$$
+E(sbp \mid age,male,race) = \beta_{0} + \beta_{1} \cdot age
++ \beta_{2} \cdot male
++ \beta_{3-5} \cdot race
++ (\beta_{6} \cdot male + \beta_{7-9} \cdot race) \cdot age
+$$
+
+<!--
 $$
 \begin{aligned}
 E(sbp \mid age, race, sex) &= \beta_{0} \\
 &+ \beta_{1} \cdot age \\
-&+ \beta_{2} \cdot male + \beta_{3} \cdot male \cdot age \\
+&+ \beta_{2} \cdot male \\
+&+ \beta_{3} \cdot male \cdot age \\
 &+ \beta_{4} \cdot R_{w} + \beta_{5} \cdot R_{b} + \beta_{6} \cdot R_{a} \\
 &+ (\beta_{7} \cdot R_{w} + \beta_{8} \cdot R_{b} + \beta_{9} \cdot R_{a}) \cdot age
 \end{aligned}
 $$
+-->
 
 ```{r}
-sbp_all_lm <- regress(
-  "mean",
-  sbp ~ age*male + age*Rw + age*Rb + age*Ra,
-  data = mri
-)
+old_sbp_all_lm <- regress("mean", sbp ~ age*male + age*Rw + age*Rb + age*Ra, data = mri)
+old_sbp_all_lm_inf <- inference_table(old_sbp_all_lm, include_intercept = TRUE)
 
-sbp_all_lm_inf <-
-  inference_table(sbp_all_lm, include_intercept = TRUE) %>%
-  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+sbp_all_lm <- regress("mean", sbp ~ age*male + age*as.factor(race), data = mri)
+
+sbp_all_lm_inf <- sbp_all_lm$model %>%
+  as.table() %>%
+  as_tibble(.name_repair = "minimal") %>%
+  setNames(c("param", "var", "val")) %>%
+  tidyr::pivot_wider(names_from = "var", values_from = "val") %>%
+  mutate(Parameter = c(
+    "Intercept", "age", "male",
+    "race", "| race-White", "| race-Black", "| race-Asian",
+    "age:male",
+    "age:race", "| age:race-White", "| age:race-Black", "| age:race-Asian"
+  )) %>%
+  select(Parameter, df, everything(), -`F stat`, -param, -`Naive SE`)
 
 knitr::kable(sbp_all_lm_inf, booktabs = TRUE, digits = 3,
   caption = "Inferential statistics of SBP vs age, adjusted for race and sex"
@@ -153,8 +185,10 @@ knitr::kable(sbp_all_lm_inf, booktabs = TRUE, digits = 3,
 ```{r}
 sbp_all_pred <- predict(
   sbp_all_lm, interval = "prediction",
-  newdata = data.frame(age = 70, male = 0, Rw = 0, Rb = 1, Ra = 0)
+  newdata = data.frame(age = 70, male = 0, race = "Black")
 )
+
+# data.frame(age = 70, male = 0, Rw = 0, Rb = 1, Ra = 0)
 
 colnames(sbp_all_pred) <- c("Prediction", "95%L", "95%H")
 
@@ -165,6 +199,24 @@ knitr::kable(sbp_all_pred, booktabs = TRUE, digits = 3,
 ```
 
 ## _(Q3.c)_
+
+```{r}
+res_v_fit_data <- tibble(
+  fit = sbp_all_lm$linearPredictor,
+  res = sbp_all_lm$residuals
+)
+
+res_v_fit_plot <- ggplot(data = res_v_fit_data, aes(x = fit, y = res)) +
+  geom_point(shape = 1, alpha = .5) +
+  labs(title = "Residuals vs Fitted Values", x = "Fitted values", y = "Residuals") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"), legend.position = "top")
+```
+
+```{r}
+res_v_fit_plot
+```
+
 
 
 # _(Q4)_ Odds ratios
