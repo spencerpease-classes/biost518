@@ -46,8 +46,8 @@ mri <- read_table2("data/mri.txt") %>%
 ```{r}
 sbp_age_scatter <- ggplot(mri, aes(x = age, y = sbp, color = sex)) +
   geom_point(shape = 1, alpha = .5) +
-  stat_smooth(method = "loess", se = FALSE) +
-  labs(title = "SBP vs Age", x = "Age (years)", y = "SBP (mmHg)") +
+  stat_smooth(method = "loess", se = TRUE) +
+  labs(title = "SBP vs Age", x = "Age (years)", y = "SBP (mm Hg)") +
   theme_bw() +
   theme(text = element_text(family = "serif"), legend.position = "top")
 ```
@@ -58,6 +58,15 @@ sbp_age_scatter
 
 ## _(Q1.b)_
 
+From the scatter plot, fit with loess smooths for each sex, there does not appear
+to be any conclusive evidence that sex affects the association between SBP and
+age. From the scatter plot itself, we see that there is no clear separation along
+either axis by sex, and while the loess smooths have different patterns, they
+follow each other closely enough to fall within the standard error margin of
+each other. The upward trend in SBP for 90+ year-old males is likely due to the
+small availability of data in that subset of the population, leading to a sample
+without any female representation.
+
 ## _(Q1.c)_
 
 ```{r}
@@ -66,14 +75,36 @@ sbp_age_sex_lm_inf <-
   inference_table(sbp_age_sex_lm, include_intercept = TRUE) %>%
   mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
 
+q1c <- list(
+  sbp_age_sex_lm_inf[[2, 2]],
+  sbp_age_sex_lm_inf[2, 4:5] %>% as.numeric(),
+  sum(sbp_age_sex_lm_inf[c(2, 4), 2]),
+  sbp_age_sex_lm_inf[c(2, 4), 4:5] %>% summarise_all(sum) %>% as.numeric()
+) %>%
+  purrr::map(round, digits = 2)
+
 knitr::kable(sbp_age_sex_lm_inf, booktabs = TRUE, digits = 3,
   caption = "Inferential statistics of SBP vs age, adjusted for sex"
 )
 
 ```
 
+In the linear model of SBP vs age, adjusted for sex, fit using robust standard
+errors, we find that there is a statistically significant first-order
+relationship between sbp and age and the interaction between age and sex.
+For two groups of females differing by one year in age, mean sbp is `r q1c[1]`
+mm Hg higher in the older group (95% CI: `r q1c[[2]][1]`, `r q1c[[2]][2]`). For
+two groups of males differing by one year in age, mean sbp is `r q1c[3]` mm Hg
+higher in the older group.
 
 ## _(Q1.d)_
+
+This model show there is a difference between the association of sbp and age
+when accounting for sex, but that difference is slight and both are trending in
+the same direction. Looking at the scatter plot confirms this: in the range of
+data where there are both male and female observations, the net change in slope
+of the loess line for females is greater than the net change for males.
+
 
 # _(Q2)_ Systolic blood pressure by age and race
 
@@ -128,6 +159,15 @@ knitr::kable(sbp_age_race_lm_inf, booktabs = TRUE, digits = 3,
 )
 
 ```
+
+In this linear model of the association between sbp and age, adjusted for race
+and fit with robust standard errors, we do not find significant evidence that
+there is a first-order trend in our sample indicating different race-adjusted
+age patterns for sbp (_P_-value $.96$). In this model, race is treated as a
+categorical variable, with _other_ being the baseline race. A
+3-degree-of-freedom test was performed, showing that any race of _White_,
+_Black_, or _Asian_ was significantly different from the base case in regarding
+any interaction with age.
 
 
 # _(Q3)_ Systolic blood pressure by age, sex, and race
@@ -217,7 +257,10 @@ res_v_fit_plot <- ggplot(data = res_v_fit_data, aes(x = fit, y = res)) +
 res_v_fit_plot
 ```
 
-
+The residual plot shows that, for a given fitted value, the residuals tend to
+lie symmetrically around zero. This confirms that variance across groups in our
+sample is homoscedastic, which is one of the underlying assumptions required for
+prediction.
 
 # _(Q4)_ Odds ratios
 
