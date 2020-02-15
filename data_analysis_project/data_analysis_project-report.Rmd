@@ -1,0 +1,24 @@
+---
+title: "Data Analysis Project"
+author: "Group 03"
+date: "2/25/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+# Set output options
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '-')
+
+# Include libraries
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(uwIntroStats)
+
+# Helper functions
+
+# Prepare data
+
+```
