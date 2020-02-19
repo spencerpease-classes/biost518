@@ -18,7 +18,63 @@ library(ggplot2)
 library(uwIntroStats)
 
 # Helper functions
+source("functions/summary_table.R")
+source("functions/inference_table.R")
 
 # Prepare data
+mesa <- read_csv("data/mesa.csv") %>%
+  select(-idno) %>%
+  mutate(
+    log2_crp = log2(crp1),
+    f_sex = factor(gender1, levels = c(0, 1), labels = c("Female", "Male")),
+    f_race = factor(race1c, levels = 1:4, labels = c("white", "Chinese", "black", "Hispanic")),
+    f_htnmed = factor(htnmed1c, levels = 0:1, labels = c("no", "yes")),
+    cig_status = factor(cig1c, levels = 0:2, labels = c("never", "former", "current")),
+    log2_pkyrs = log2(pkyrs1c)
+  )
 
 ```
+
+# Exploratory Data Analysis
+
+```{r}
+mesa_stbl <- summary_table(mesa %>% select_if(~!is.factor(.)))
+
+knitr::kable(mesa_stbl, booktabs = TRUE, digits = 3,
+  caption = "MESA summary table"
+)
+```
+
+```{r}
+crp_lv_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass, color = f_sex)) +
+  geom_point(shape = 1, alpha = .5) +
+  labs(title = "LV-mass vs log2(crp)", x = "log2(crp) (mg/l)", y = "LV-mass (g)", color = "Sex") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"), legend.position = "top")
+
+```
+
+```{r}
+crp_lv_scatter
+```
+
+
+
+# Association between C-reactive Protein and LV Mass
+
+
+```{r}
+crp_lv_lm <- regress("mean", lvmass ~ log2_crp*gender1 + log2_crp*bmi1c, data = mesa)
+
+crp_lv_inf <- inference_table(
+  crp_lv_lm,
+  paramter_names = c("Intercept", "log2(crp)", "sex", "BMI", "log2(crp):sex", "log2(crp):BMI"),
+  include_intercept = TRUE
+)
+
+knitr::kable(crp_lv_inf, booktabs = TRUE, digits = 3,
+  caption = "Inference of crude crp vs LV-mass linear model"
+)
+```
+
+
