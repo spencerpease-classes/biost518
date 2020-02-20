@@ -8,12 +8,13 @@ output: pdf_document
 ```{r setup, include=FALSE}
 
 # Set output options
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
 options(knitr.kable.NA = '-')
 
 # Include libraries
 library(dplyr)
 library(readr)
+library(forcats)
 library(ggplot2)
 library(uwIntroStats)
 
@@ -22,59 +23,158 @@ source("functions/summary_table.R")
 source("functions/inference_table.R")
 
 # Prepare data
+
+site_labels <- c(
+  "Wake Forest" = 3, "Columbia" = 4, "Johns Hopkins" = 5, "U Minnesota" = 6,
+  "Northwestern" = 7, "UCLA" = 8
+)
+
+edu_labels <- c(
+  "no schooling" = 0, "grade 1-8" = 1, "grades 9-11" = 2, "high school" = 3,
+  "some college" = 4, "tech school cert" = 5, "associate degree" = 6,
+  "bachelors degress" = 7, "graduate/prof degree" = 8
+)
+
+income_labels <- c(
+  "<$5k" = 1, "[$5k-8k)" = 2, "[$8k12k)" = 3, "[$12k-16k)" = 4, "[$16k-20k)" = 5,
+  "[$20k-25k)" = 6, "[$25k-30k)" = 7, "[$30k35k)" = 8, "[$35k-40k)" = 9,
+  "[$40k-50k)" = 10, "[$50k-75k)" = 11, "[$75k-100k)" = 12, "<=$100k" = 13
+)
+
 mesa <- read_csv("data/mesa.csv") %>%
   select(-idno) %>%
   mutate(
-    log2_crp = log2(crp1),
-    f_sex = factor(gender1, levels = c(0, 1), labels = c("Female", "Male")),
+    f_sex = factor(gender1, levels = 0:1, labels = c("Female", "Male")),
     f_race = factor(race1c, levels = 1:4, labels = c("white", "Chinese", "black", "Hispanic")),
-    f_htnmed = factor(htnmed1c, levels = 0:1, labels = c("no", "yes")),
-    cig_status = factor(cig1c, levels = 0:2, labels = c("never", "former", "current")),
+    f_htn_med = factor(htnmed1c, levels = 0:1, labels = c("no", "yes")),
+    f_htn = factor(htn1c, levels = 0:1, labels = c("no", "yes")),
+    f_cig_use = factor(cig1c, levels = 0:2, labels = c("never", "former", "current")),
+    f_site = factor(site1c, levels = site_labels, labels = names(site_labels)),
+    f_edu = factor(educ1, levels = edu_labels, labels = names(edu_labels)),
+    f_income = factor(income1, levels = income_labels, labels = names(income_labels))
+  ) %>%
+  select(-gender1, -race1c, -htnmed1c, -htn1c, -cig1c, -site1c, -educ1, -income1) %>%
+  mutate_if(is.factor, fct_explicit_na) %>%
+  mutate(
+    sex = as.numeric(f_sex) - 1,
+    log2_crp = log2(crp1),
     log2_pkyrs = log2(pkyrs1c)
   )
 
 ```
 
-# Exploratory Data Analysis
+# Aim 1
+
+## Exploratory Analysis
 
 ```{r}
-mesa_stbl <- summary_table(mesa %>% select_if(~!is.factor(.)))
+stbl_cont <- summary_table(mesa %>% select_if(~!is.factor(.)))
 
-knitr::kable(mesa_stbl, booktabs = TRUE, digits = 3,
-  caption = "MESA summary table"
+knitr::kable(stbl_cont, booktabs = TRUE, digits = 3,
+  caption = "MESA summary table (continous variables)"
 )
 ```
 
 ```{r}
-crp_lv_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass, color = f_sex)) +
-  geom_point(shape = 1, alpha = .5) +
-  labs(title = "LV-mass vs log2(crp)", x = "log2(crp) (mg/l)", y = "LV-mass (g)", color = "Sex") +
+
+cat_summary_funcs <- list(
+  n       = ~length(.),
+  valid   = ~sum(!(. %in% "(Missing)")),
+  missing = ~sum(. %in% "(Missing)"),
+  unique  = ~length(unique(.))
+)
+
+stbl_cat <-
+  summary_table(mesa %>% select_if(is.factor), summary_funcs = cat_summary_funcs) %>%
+  mutate(variable = c("Sex", "Ethnicity", "Htn. medicaton", "Htn. status", "Smoking status", "Study site", "Eduction", "Income"))
+
+knitr::kable(stbl_cat, booktabs = TRUE, digits = 3,
+  caption = "MESA summary table (categorical variables)"
+)
+```
+
+
+
+```{r}
+crp_lv_sex_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass)) +
+  geom_point(aes(color = f_sex), shape = 1, alpha = .4) +
+  stat_smooth(aes(color = f_sex), method = "lm", se = FALSE) +
+  stat_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "black") +
+  labs(title = "LV-mass vs log2 crp", x = "log2 crp (mg/l)", y = "LV-mass (g)", color = "Sex") +
   theme_bw() +
   theme(text = element_text(family = "serif"), legend.position = "top")
 
 ```
 
 ```{r}
-crp_lv_scatter
+crp_lv_sex_scatter
+```
+
+```{r}
+crp_lv_income_box <- ggplot(mesa, aes(x = f_income, y = lvmass)) +
+  geom_boxplot() +
+  labs(title = "LV-mass by Income Level", x = "Income", y = "LV-mass (g)") +
+  coord_flip() +
+  theme_classic() +
+  theme(text = element_text(family = "serif"))
 ```
 
 
 
-# Association between C-reactive Protein and LV Mass
+## Crude Model
 
 
 ```{r}
-crp_lv_lm <- regress("mean", lvmass ~ log2_crp*gender1 + log2_crp*bmi1c, data = mesa)
+crude_lm <- regress("mean", lvmass ~ log2_crp + sex + bmi1c, data = mesa)
 
-crp_lv_inf <- inference_table(
-  crp_lv_lm,
-  paramter_names = c("Intercept", "log2(crp)", "sex", "BMI", "log2(crp):sex", "log2(crp):BMI"),
+crude_inf <- inference_table(
+  crude_lm,
+  paramter_names = c("Intercept", "log2 crp", "Sex", "BMI"),
   include_intercept = TRUE
-)
+) %>%
+  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
 
-knitr::kable(crp_lv_inf, booktabs = TRUE, digits = 3,
+
+knitr::kable(crude_inf, booktabs = TRUE, digits = 3,
   caption = "Inference of crude crp vs LV-mass linear model"
 )
 ```
+
+```{r}
+crude_lm
+```
+
+
+# Aim 2
+
+## Full model (no interactions)
+
+```{r}
+full_lm <- regress(
+  "mean",
+  lvmass ~ log2_crp + sex + bmi1c + age + factor(f_race),
+  data = mesa
+)
+```
+
+```{r}
+full_lm$augCoefficients
+```
+
+
+## Full model (with interactions)
+
+```{r}
+full_lm_int <- regress(
+  "mean",
+  lvmass ~ log2_crp*(sex + bmi1c + age + factor(f_race)),
+  data = mesa
+)
+```
+
+```{r}
+full_lm_int$augCoefficients
+```
+
 
 
