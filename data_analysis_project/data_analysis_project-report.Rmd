@@ -177,4 +177,13 @@ full_lm_int$augCoefficients
 ```
 
 
+```{r}
+crp_lv_race_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass, color = factor(txdiab))) +
+  geom_point(shape = 1, alpha = .5) +
+  geom_smooth(se = FALSE, method = "lm") +
+  theme_bw()
+```
+
+
+
 
