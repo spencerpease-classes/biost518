@@ -21,6 +21,7 @@ library(uwIntroStats)
 # Helper functions
 source("functions/summary_table.R")
 source("functions/inference_table.R")
+source("functions/factor_inf_table.R")
 
 # Prepare data
 
@@ -49,11 +50,12 @@ mesa <- read_csv("data/mesa.csv") %>%
     f_htn_med = factor(htnmed1c, levels = 0:1, labels = c("no", "yes")),
     f_htn = factor(htn1c, levels = 0:1, labels = c("no", "yes")),
     f_cig_use = factor(cig1c, levels = 0:2, labels = c("never", "former", "current")),
+    f_diab = factor(txdiab, levels = 0:1, labels = c("no", "yes")),
     f_site = factor(site1c, levels = site_labels, labels = names(site_labels)),
     f_edu = factor(educ1, levels = edu_labels, labels = names(edu_labels)),
     f_income = factor(income1, levels = income_labels, labels = names(income_labels))
   ) %>%
-  select(-gender1, -race1c, -htnmed1c, -htn1c, -cig1c, -site1c, -educ1, -income1) %>%
+  select(-gender1, -race1c, -htnmed1c, -htn1c, -cig1c, -site1c, -educ1, -income1, -txdiab) %>%
   mutate_if(is.factor, fct_explicit_na) %>%
   mutate(
     sex = as.numeric(f_sex) - 1,
@@ -71,7 +73,17 @@ mesa <- read_csv("data/mesa.csv") %>%
 stbl_cont <- summary_table(mesa %>% select_if(~!is.factor(.)))
 
 knitr::kable(stbl_cont, booktabs = TRUE, digits = 3,
-  caption = "MESA summary table (continous variables)"
+  caption = "MESA summary table (all continous variables)"
+)
+```
+
+```{r}
+stbl_cont_used <- mesa %>%
+  select(lvmass, crp1, log2_crp, bmi1c, age, sbp1c) %>%
+  summary_table()
+
+knitr::kable(stbl_cont_used, booktabs = TRUE, digits = 3,
+  caption = "MESA summary table (used continous variables)"
 )
 ```
 
@@ -86,7 +98,7 @@ cat_summary_funcs <- list(
 
 stbl_cat <-
   summary_table(mesa %>% select_if(is.factor), summary_funcs = cat_summary_funcs) %>%
-  mutate(variable = c("Sex", "Ethnicity", "Htn. medicaton", "Htn. status", "Smoking status", "Study site", "Eduction", "Income"))
+  mutate(variable = c("Sex", "Ethnicity", "Htn. medicaton", "Htn. status", "Smoking status", "Treated diabetes", "Study site", "Eduction", "Income"))
 
 knitr::kable(stbl_cat, booktabs = TRUE, digits = 3,
   caption = "MESA summary table (categorical variables)"
@@ -94,16 +106,24 @@ knitr::kable(stbl_cat, booktabs = TRUE, digits = 3,
 ```
 
 
-
 ```{r}
 crp_lv_sex_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass)) +
   geom_point(aes(color = f_sex), shape = 1, alpha = .4) +
   stat_smooth(aes(color = f_sex), method = "lm", se = FALSE) +
   stat_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "black") +
-  labs(title = "LV-mass vs log2 crp", x = "log2 crp (mg/l)", y = "LV-mass (g)", color = "Sex") +
+  labs(
+    title = "LV-mass vs log2 crp",
+    caption = "Colored sex−specific regression lines; dashed both−sex regression line",
+    x = "log2 crp (mg/l)",
+    y = "LV-mass (g)",
+    color = "Sex") +
   theme_bw() +
   theme(text = element_text(family = "serif"), legend.position = "top")
 
+ggsave(
+  "plots/crp_vs_lvmass_by_sex.png", crp_lv_sex_scatter,
+  width = 7, height = 5, units = "in", dpi = 300
+)
 ```
 
 ```{r}
@@ -120,12 +140,12 @@ crp_lv_income_box <- ggplot(mesa, aes(x = f_income, y = lvmass)) +
 ```
 
 
-
 ## Crude Model
 
-
 ```{r}
-crude_lm <- regress("mean", lvmass ~ log2_crp + sex + bmi1c, data = mesa)
+crude_lm <- mesa %>%
+  filter(!is.na(lvmass)) %>%
+  regress("mean", lvmass ~ log2_crp + sex + bmi1c, data = .)
 
 crude_inf <- inference_table(
   crude_lm,
@@ -140,50 +160,96 @@ knitr::kable(crude_inf, booktabs = TRUE, digits = 3,
 )
 ```
 
-```{r}
-crude_lm
-```
-
 
 # Aim 2
 
-## Full model (no interactions)
-
 ```{r}
-full_lm <- regress(
-  "mean",
-  lvmass ~ log2_crp + sex + bmi1c + age + factor(f_race),
-  data = mesa
+crp_lv_race_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass, color = factor(f_race))) +
+  geom_point(shape = 1, alpha = .5) +
+  geom_smooth(se = FALSE, method = "lm") +
+  labs(
+    title = "LV-mass vs log2 crp",
+    x = "log2 crp (mg/l)",
+    y = "LV-mass (g)",
+    color = "Race/Ethnicity") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"), legend.position = "top")
+
+ggsave(
+  "plots/crp_vs_lvmass_by_race.png", crp_lv_race_scatter,
+  width = 7, height = 5, units = "in", dpi = 300
 )
 ```
 
 ```{r}
-full_lm$augCoefficients
+crp_lv_race_scatter
+```
+
+
+```{r}
+crp_lv_smoke_scatter <- mesa %>%
+  filter(f_cig_use != "(Missing)") %>%
+  ggplot(aes(x = log2_crp, y = lvmass, color = factor(f_cig_use))) +
+  geom_point(shape = 1, alpha = .5) +
+  geom_smooth(se = FALSE, method = "lm") +
+  labs(
+    title = "LV-mass vs log2 crp",
+    x = "log2 crp (mg/l)",
+    y = "LV-mass (g)",
+    color = "Cigarette smoking status") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"), legend.position = "top")
+
+ggsave(
+  "plots/crp_vs_lvmass_by_cig_use.png", crp_lv_smoke_scatter,
+  width = 7, height = 5, units = "in", dpi = 300
+)
+```
+
+```{r}
+crp_lv_smoke_scatter
+```
+
+
+## Full model (no interactions)
+
+```{r}
+full_lm <- mesa %>%
+  filter(!is.na(lvmass), f_cig_use != "(Missing)", !is.na(sbp1c)) %>%
+  regress(
+    "mean",
+    lvmass ~ log2_crp + sex + bmi1c + age + factor(f_race) + sbp1c,
+    data = .
+  )
+```
+
+```{r}
+full_lm %>%
+  factor_inf_table() %>%
+  mutate(`Pr(>F)` = format(`Pr(>F)`, digits = 3)) %>%
+  knitr::kable(booktabs = TRUE, digits = 3,
+    caption = "Full model (no interaction terms)"
+  )
 ```
 
 
 ## Full model (with interactions)
 
 ```{r}
-full_lm_int <- regress(
-  "mean",
-  lvmass ~ log2_crp*(sex + bmi1c + age + factor(f_race)),
-  data = mesa
-)
+full_lm_int <- mesa %>%
+  filter(!is.na(lvmass), !is.na(sbp1c)) %>%
+  regress(
+    "mean",
+    lvmass ~ log2_crp * (sex + bmi1c + age + factor(f_race) + sbp1c),
+    data = .
+  )
 ```
 
 ```{r}
-full_lm_int$augCoefficients
+full_lm_int %>%
+  factor_inf_table() %>%
+  mutate(`Pr(>F)` = format(`Pr(>F)`, digits = 3)) %>%
+  knitr::kable(booktabs = TRUE, digits = 3,
+    caption = "Full model (with interaction terms)"
+  )
 ```
-
-
-```{r}
-crp_lv_race_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass, color = factor(txdiab))) +
-  geom_point(shape = 1, alpha = .5) +
-  geom_smooth(se = FALSE, method = "lm") +
-  theme_bw()
-```
-
-
-
-
