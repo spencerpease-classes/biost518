@@ -1,8 +1,13 @@
 ---
-title: "Data Analysis Project"
-author: "Group 03"
-date: "2/25/2020"
+title: "MESA Analysis: C-Reactive Protein and Left Ventricular Hypertrophy"
+author: "Group 3"
 output: pdf_document
+fontsize: 11pt
+geometry: margin=.8in
+header-includes:
+  - \usepackage{setspace}
+  - \doublespacing
+abstract: "\\singlespacing Clinical studies have shown that left ventricular mass (LVM) is a strong subclinical predictor of cardiovascular disease (CVD), which is a major cause of death globally. To characterize and investigate the relationship between inflammation and LVM, cross-sectional data from the MESA cohort was analyzed using multiple linear regression modeling. Using inflammation as a predictor variable, measured by CRP levels, and adjusting for sex and BMI, estimated mean LVM is 0.35g (95% CI: -0.90, 0.21) lower on average for each unit increase in $log_2(CRP)$. Conducting MLR adjusting for age, sex, race, BMI and systolic blood pressure (SBP), the estimated mean LVM is 2.48g (95% CI: -6.81, 1.85) lower on average for each unit increase in $log_2(CRP)$. However, both MLR models have the two-sided _p_-values >0.05, which indicates insufficient evidence to reject the null hypothesis of no association between LVM and $log_2(CRP)$. The results of this study show the relationship between inflammation and LVM arises from complex mechanisms and that further research is needed to determine appropriate predictive models to aid early detection and clinical counselling for management of CVD."
 ---
 
 ```{r setup, include=FALSE}
@@ -15,6 +20,7 @@ options(knitr.kable.NA = '-')
 library(dplyr)
 library(readr)
 library(forcats)
+library(stringr)
 library(ggplot2)
 library(uwIntroStats)
 
@@ -24,97 +30,129 @@ source("functions/inference_table.R")
 source("functions/factor_inf_table.R")
 
 # Prepare data
-
-site_labels <- c(
-  "Wake Forest" = 3, "Columbia" = 4, "Johns Hopkins" = 5, "U Minnesota" = 6,
-  "Northwestern" = 7, "UCLA" = 8
-)
-
-edu_labels <- c(
-  "no schooling" = 0, "grade 1-8" = 1, "grades 9-11" = 2, "high school" = 3,
-  "some college" = 4, "tech school cert" = 5, "associate degree" = 6,
-  "bachelors degress" = 7, "graduate/prof degree" = 8
-)
-
-income_labels <- c(
-  "<$5k" = 1, "[$5k-8k)" = 2, "[$8k12k)" = 3, "[$12k-16k)" = 4, "[$16k-20k)" = 5,
-  "[$20k-25k)" = 6, "[$25k-30k)" = 7, "[$30k35k)" = 8, "[$35k-40k)" = 9,
-  "[$40k-50k)" = 10, "[$50k-75k)" = 11, "[$75k-100k)" = 12, "<=$100k" = 13
-)
-
-mesa <- read_csv("data/mesa.csv") %>%
-  select(-idno) %>%
-  mutate(
-    f_sex = factor(gender1, levels = 0:1, labels = c("Female", "Male")),
-    f_race = factor(race1c, levels = 1:4, labels = c("white", "Chinese", "black", "Hispanic")),
-    f_htn_med = factor(htnmed1c, levels = 0:1, labels = c("no", "yes")),
-    f_htn = factor(htn1c, levels = 0:1, labels = c("no", "yes")),
-    f_cig_use = factor(cig1c, levels = 0:2, labels = c("never", "former", "current")),
-    f_diab = factor(txdiab, levels = 0:1, labels = c("no", "yes")),
-    f_site = factor(site1c, levels = site_labels, labels = names(site_labels)),
-    f_edu = factor(educ1, levels = edu_labels, labels = names(edu_labels)),
-    f_income = factor(income1, levels = income_labels, labels = names(income_labels))
+mesa <- read_csv("data/mesa.csv", col_types = cols(.default = col_double())) %>%
+  transmute(
+    `LV-mass` = lvmass,
+    CRP = crp1,
+    log2_CRP = log2(crp1),
+    BMI = bmi1c,
+    Sex = factor(gender1, levels = 0:1, labels = c("Female", "Male")),
+    Race = factor(race1c, levels = 1:4, labels = c("white", "Chinese", "black", "Hispanic")),
+    Age = age,
+    SBP = sbp1c
   ) %>%
-  select(-gender1, -race1c, -htnmed1c, -htn1c, -cig1c, -site1c, -educ1, -income1, -txdiab) %>%
-  mutate_if(is.factor, fct_explicit_na) %>%
-  mutate(
-    sex = as.numeric(f_sex) - 1,
-    log2_crp = log2(crp1),
-    log2_pkyrs = log2(pkyrs1c)
-  )
+  mutate_if(is.factor, fct_explicit_na)
 
 ```
 
-# Aim 1
+## Introduction
 
-## Exploratory Analysis
+Cardiovascular disease (CVD) is a leading cause of death, accounting for
+approximately 17.9 million deaths in 2016 and 31% of global deaths (1). Clinical
+research, such as the Framingham Study, have shown left ventricular hypertrophy
+(LVH) is an important predictor of adverse cardiovascular events (2). In turn,
+LVH is associated with multiple factors such as age, weight, race, and blood
+pressure, which potentially remodel ventricular thickness and size (1-3). The
+Multi-Ethnic Study of Atherosclerosis (MESA) used advanced magnetic resonance
+imaging (MRI) measurement tools to evaluate the prevalence and progression of
+subclinical CVD in a cohort of 6,814 men and women between 45 and 84 years of
+age across 6 sites in the US (3). Risk factors for CVD were measured, including
+C-reactive protein (CRP), which is a protein used as a biomarker for
+inflammation and has been associated with higher risk of cardiovascular disease
+(4-5). Our first aim is to use cross-sectional MESA data to characterize the
+association between CRP and left ventricular mass (LVM). Our second aim is to
+further investigate the complex social, demographic, biological, and behavioral
+mechanisms through which inflammation contributes to LVH, thus identifying
+predictive factors and enhancing interventions for averting global CVD deaths.
+
+
+## Methods
+
+For both aims, CRP is the predictor of interest and LVM is the response
+variable. LVM was chosen as an indicator of LVH preferentially over ejection
+fraction (LVEH), since LVEH is not always a good indicator of LVH, such as in
+cases of dilated cardiomyopathy. Models for Aims 1 and 2 are, respectively,
+shown:
+
+$$
+E(LVM \mid crp, sex, bmi) = \beta_0 + \beta_1(crp) + \beta_2(sex) + \beta_3(bmi)
+$$
+
+$$
+\begin{aligned}
+E(LVM \mid crp, sex, bmi, age, sbp, race) &= \beta_0 + \beta_1(crp) \\
+&+ \beta_2(sex) + \beta_3(bmi) + \beta_4(age) + \beta_5(sbp) + \beta_{6-8}(race) \\
+&+ crp[\beta_9(sex) + \beta_10(bmi) + \beta_11(age) + \beta_12(sbp) + \beta_{13-15}(race)]
+\end{aligned}
+$$
+
+The Aim 1 model is adjusted for the covariates, sex and BMI, which are already
+known a priori to be associated with LVM. BMI was chosen as a predictor over
+height or weight, since BMI takes into account both height and weight, and it is
+already known a priori that larger people are expected to have higher LVM. The
+Aim 2 model additionally includes the covariates, race, age, and systolic blood
+pressure (SBP), because race, age and SBP are considered to be scientifically
+plausible confounders that may distort the measure of the relationship between
+CRP and LVM, as race, age, and SBP can influence both CRP and LVM individually
+and are not on a causal pathway between CRP and LVH. Both linear models were fit
+using robust standard error estimates, to relax the assumption of
+homoscedasticity. We removed observations from our sample which included
+variables that had missing values, after which our sample size remained
+sufficiently large enough to assume asymptotically normal distribution of data.
+The distribution of CRP is heavily right skewed, so in our models we use
+the $log_2$ transformation of CRP. All statistical significance tests are performed
+at the $\alpha = 0.05$ level. Our methods assumed independent data.
+
+
+## Results
+
+Baseline characteristics of $6,714$ participants are shown in Table 1. The
+meanstandard deviation (SD) age was $62 \pm 10$ years and $53\%$ were female.
 
 ```{r}
-stbl_cont <- summary_table(mesa %>% select_if(~!is.factor(.)))
-
-knitr::kable(stbl_cont, booktabs = TRUE, digits = 3,
-  caption = "MESA summary table (all continous variables)"
-)
-```
-
-```{r}
-stbl_cont_used <- mesa %>%
-  select(lvmass, crp1, log2_crp, bmi1c, age, sbp1c) %>%
+stbl_cont <- mesa %>%
+  mutate_if(is.factor, as.numeric) %>%
+  mutate(Sex = Sex -1) %>%
+  select(-Race, -Sex, everything(), Sex =, Race) %>%
   summary_table()
 
-knitr::kable(stbl_cont_used, booktabs = TRUE, digits = 3,
-  caption = "MESA summary table (used continous variables)"
+stbl_cont[7, 5:7] <- NA
+stbl_cont[8, 4:7] <- NA
+
+stbl_cat <- mesa %>%
+  group_by(Sex, Race) %>%
+  summarise(Count = n()) %>%
+  ungroup() %>%
+  mutate(Sex = c("Female", "", "", "", "Male", "", "", ""))
+
+knitr::kable(list(stbl_cont, stbl_cat), booktabs = TRUE, digits = 2,
+  caption = "Summary statistics (included counts of categorical variables)"
 )
+
 ```
 
-```{r}
+In Aim 1, based on a multiple linear regression model adjusted for sex and BMI,
+we found that the estimated mean LVM was lower by $0.35$g ($95\%$ CI: $-0.90$,
+$0.21$) for each unit increase in $log_2(CRP)$, on average. A two-sided p-value
+of $0.22$, suggests insufficient evidence to reject the null hypothesis of no
+association between LVM and $log_2(CRP)$.
 
-cat_summary_funcs <- list(
-  n       = ~length(.),
-  valid   = ~sum(!(. %in% "(Missing)")),
-  missing = ~sum(. %in% "(Missing)"),
-  unique  = ~length(unique(.))
-)
-
-stbl_cat <-
-  summary_table(mesa %>% select_if(is.factor), summary_funcs = cat_summary_funcs) %>%
-  mutate(variable = c("Sex", "Ethnicity", "Htn. medicaton", "Htn. status", "Smoking status", "Treated diabetes", "Study site", "Eduction", "Income"))
-
-knitr::kable(stbl_cat, booktabs = TRUE, digits = 3,
-  caption = "MESA summary table (categorical variables)"
-)
-```
-
+In exploratory analysis, a scatterplot with fitted regression lines was used to
+evaluate the relationship between LVM and $log_2(CRP)$. An association between LVM
+and $log_2(CRP)$ was not readily apparent among the combined sex cohort, but when
+stratified by sex, a first-order trend of positive association between higher
+$log_2(CRP)$ and higher LVM was evident among both sexes (Figure 1),
+suggesting that sex is likely a confounder of the LVM-$log_2(CRP)$ relationship.
 
 ```{r}
-crp_lv_sex_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass)) +
-  geom_point(aes(color = f_sex), shape = 1, alpha = .4) +
-  stat_smooth(aes(color = f_sex), method = "lm", se = FALSE) +
+crp_lv_sex_scatter <- ggplot(mesa, aes(x = log2_CRP, y = `LV-mass`)) +
+  geom_point(aes(color = Sex), shape = 1, alpha = .3, size = .8) +
+  stat_smooth(aes(color = Sex), method = "lm", se = FALSE) +
   stat_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "black") +
   labs(
-    title = "LV-mass vs log2 crp",
-    caption = "Colored sex−specific regression lines; dashed both−sex regression line",
-    x = "log2 crp (mg/l)",
+    title = "LV-mass vs log2 CRP",
+    caption = "(Fig. 1) Colored sex−specific regression lines; dashed both−sex regression line",
+    x = "log2 CRP (mg/l)",
     y = "LV-mass (g)",
     color = "Sex") +
   theme_bw() +
@@ -126,130 +164,92 @@ ggsave(
 )
 ```
 
-```{r}
+```{r fig.height=3.9}
 crp_lv_sex_scatter
 ```
 
-```{r}
-crp_lv_income_box <- ggplot(mesa, aes(x = f_income, y = lvmass)) +
-  geom_boxplot() +
-  labs(title = "LV-mass by Income Level", x = "Income", y = "LV-mass (g)") +
-  coord_flip() +
-  theme_classic() +
-  theme(text = element_text(family = "serif"))
-```
-
-
-## Crude Model
-
-```{r}
-crude_lm <- mesa %>%
-  filter(!is.na(lvmass)) %>%
-  regress("mean", lvmass ~ log2_crp + sex + bmi1c, data = .)
-
-crude_inf <- inference_table(
-  crude_lm,
-  paramter_names = c("Intercept", "log2 crp", "Sex", "BMI"),
-  include_intercept = TRUE
-) %>%
-  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
-
-
-knitr::kable(crude_inf, booktabs = TRUE, digits = 3,
-  caption = "Inference of crude crp vs LV-mass linear model"
-)
-```
-
-
-# Aim 2
-
-```{r}
-crp_lv_race_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass, color = factor(f_race))) +
-  geom_point(shape = 1, alpha = .5) +
-  geom_smooth(se = FALSE, method = "lm") +
-  labs(
-    title = "LV-mass vs log2 crp",
-    x = "log2 crp (mg/l)",
-    y = "LV-mass (g)",
-    color = "Race/Ethnicity") +
-  theme_bw() +
-  theme(text = element_text(family = "serif"), legend.position = "top")
-
-ggsave(
-  "plots/crp_vs_lvmass_by_race.png", crp_lv_race_scatter,
-  width = 7, height = 5, units = "in", dpi = 300
-)
-```
-
-```{r}
-crp_lv_race_scatter
-```
-
-
-```{r}
-crp_lv_smoke_scatter <- mesa %>%
-  filter(f_cig_use != "(Missing)") %>%
-  ggplot(aes(x = log2_crp, y = lvmass, color = factor(f_cig_use))) +
-  geom_point(shape = 1, alpha = .5) +
-  geom_smooth(se = FALSE, method = "lm") +
-  labs(
-    title = "LV-mass vs log2 crp",
-    x = "log2 crp (mg/l)",
-    y = "LV-mass (g)",
-    color = "Cigarette smoking status") +
-  theme_bw() +
-  theme(text = element_text(family = "serif"), legend.position = "top")
-
-ggsave(
-  "plots/crp_vs_lvmass_by_cig_use.png", crp_lv_smoke_scatter,
-  width = 7, height = 5, units = "in", dpi = 300
-)
-```
-
-```{r}
-crp_lv_smoke_scatter
-```
-
-
-## Full model (no interactions)
-
-```{r}
-full_lm <- mesa %>%
-  filter(!is.na(lvmass), f_cig_use != "(Missing)", !is.na(sbp1c)) %>%
-  regress(
-    "mean",
-    lvmass ~ log2_crp + sex + bmi1c + age + factor(f_race) + sbp1c,
-    data = .
-  )
-```
-
-```{r}
-full_lm %>%
-  factor_inf_table() %>%
-  mutate(`Pr(>F)` = format(`Pr(>F)`, digits = 3)) %>%
-  knitr::kable(booktabs = TRUE, digits = 3,
-    caption = "Full model (no interaction terms)"
-  )
-```
-
-
-## Full model (with interactions)
+The Aim 2 model adjusted sex, BMI, age, race, and SBP, for confounding as well
+as possible interactions with $log_2(CRP)$ for LVM. We estimated that mean LVM was
+lower on average by 2.48g (95% CI: -6.81, 1.85; Table 2) for each unit increase
+in $log_2(CRP)$, adjusted for sex, BMI, age, race, and SBP. A two-sided p-value of
+0.26 suggests insufficient evidence to reject the null hypothesis of no
+association between LVM and CRP. Among males, the association between LVM and
+$log_2(CRP)$ was 1.38g (95% CI: 0.37, 2.39) higher than the female group for each 1
+unit increase in $log_2(CRP)$. Furthermore, the association between LVM and
+$log_2(CRP)$ was 0.13g (95% CI: -0.23, -0.02) lower for each 1 kg/m2 higher BMI.
+While we found the interactions between sex, BMI and $log_2(CRP)$ to be
+statistically significant (p=0.0076 and 0.015, respectively; Table 2), we failed
+to find statistically significant interactions between age, race, SBP and
+$log_2(CRP)$ (p=0.22, 0.23 and 0.31, respectively).
 
 ```{r}
 full_lm_int <- mesa %>%
-  filter(!is.na(lvmass), !is.na(sbp1c)) %>%
+  mutate(Sex = as.numeric(Sex) -1) %>%
+  filter(!is.na(`LV-mass`), !is.na(SBP)) %>%
   regress(
     "mean",
-    lvmass ~ log2_crp * (sex + bmi1c + age + factor(f_race) + sbp1c),
+    `LV-mass` ~ log2_CRP * (Sex + BMI + Age + SBP + factor(Race)),
     data = .
   )
 ```
 
 ```{r}
-full_lm_int %>%
+full_lm_int_inf_tbl <- full_lm_int %>%
   factor_inf_table() %>%
-  mutate(`Pr(>F)` = format(`Pr(>F)`, digits = 3)) %>%
-  knitr::kable(booktabs = TRUE, digits = 3,
-    caption = "Full model (with interaction terms)"
+  mutate(
+    `Pr(>F)` = format(`Pr(>F)`, digits = 2),
+    param = str_replace_all(param, c("factor\\(Race\\)" = "Race-", "-$" = "")),
+    param = if_else(str_detect(param, "-"), paste0("| ", param), param)
   )
+
+knitr::kable(full_lm_int_inf_tbl, booktabs = TRUE, digits = 2,
+  caption = "Fully adjusted model"
+)
 ```
+
+Additionally, the LVM-$log_2(CRP)$ relationship stratified by race was examined
+in a scatterplot with corresponding fitted regression lines in an exploratory
+analysis. Similar slopes for the race-specific associations suggested no
+noticeable differences across race categories. Thus, race did not appear to
+modify the LVM-$log_2(CRP)$ association.
+
+
+## Discussion
+
+While our analysis did not demonstrate statistically significant evidence for an
+association between CRP and LVH, it is important to consider several important
+limitations of our study. Although MESA was a prospective cohort study, we only
+used cross-sectional data in our analysis, which means that causal inference
+cannot be made, but instead only the strength of associations can be evaluated.
+Furthermore, BMI does not distinguish between body fat vs. muscle composition,
+limiting its usefulness. There is also substantial missing data among our
+observations, which decreases the power of our study. For example, only 73% of
+participants had an MRI of their heart, and 7% of study participants were unable
+to undergo MRI due to metal within their body. This raises concern for potential
+selection bias in our data, with this segment of the population that may be in
+poorer health not being adequately represented.
+
+Despite such limitations, our exploratory analyses suggest that sex is a
+confounder of the association between CRP and LVH, which is biologically
+plausible, given the multifactorial role of sex hormones on various organ
+systems in the body, which can directly affect CRP levels and directly affect
+LVM. Our multivariate linear regression analyses suggest BMI is an effect
+modifier of the association between CRP and LVH, which is also biologically
+plausible, given that higher BMI is often associated with greater adiposity, a
+hormone-releasing tissue known to be generally associated with higher levels of
+inflammation in the body and also known to be associated with higher LVM.
+However, it is likely that LVH is also associated with complex mechanisms
+involving multiple social, demographic, biological, and behavioral risk factors
+that are beyond the scope of our data analysis, and more studies are needed to
+continue to advance our understanding of the association that such variables
+have on LVH, which in turn could help focus interventions to reduce CVD related
+morbidity and mortality globally.
+
+
+### References
+
+ 1. World Health Organization. (2013). Global action plan for the prevention and control of noncommunicable diseases 2013-2020. World Health Organization.
+ 2. Bluemke, D. A., et al. (2008). The relationship of left ventricular mass and geometry to incident cardiovascular events: the MESA (Multi-Ethnic Study of Atherosclerosis) study. Journal of the American College of Cardiology, 52(25), 2148-2155.
+ 3. Bild, D. E., et al. (2002). Multi-ethnic study of atherosclerosis: objectives and design. American journal of epidemiology, 156(9), 871-881.
+ 4. Lakoski, S. G., Cushman, M., Criqui, M., Rundek, T., Blumenthal, R. S., D'Agostino Jr, R. B., & Herrington, D. M. (2006). Gender and C-reactive protein: data from the Multiethnic Study of Atherosclerosis (MESA) cohort. American heart journal, 152(3), 593-598.
+ 5. Lakoski, S. G., Cushman, M., Palmas, W., Blumenthal, R., D’Agostino, R. B., & Herrington, D. M. (2005). The relationship between blood pressure and C-reactive protein in the Multi-Ethnic Study of Atherosclerosis (MESA). Journal of the American college of cardiology, 46(10), 1869-1874.
