@@ -1,0 +1,105 @@
+---
+title: "Report EDA"
+author: "Group 03"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+# Set output options
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+options(knitr.kable.NA = '-')
+
+# Include libraries
+library(dplyr)
+library(readr)
+library(forcats)
+library(ggplot2)
+library(uwIntroStats)
+
+# Helper functions
+source("functions/summary_table.R")
+source("functions/inference_table.R")
+source("functions/factor_inf_table.R")
+
+
+# Full MESA data prep
+site_labels <- c(
+  "Wake Forest" = 3, "Columbia" = 4, "Johns Hopkins" = 5, "U Minnesota" = 6,
+  "Northwestern" = 7, "UCLA" = 8
+)
+
+edu_labels <- c(
+  "no schooling" = 0, "grade 1-8" = 1, "grades 9-11" = 2, "high school" = 3,
+  "some college" = 4, "tech school cert" = 5, "associate degree" = 6,
+  "bachelors degress" = 7, "graduate/prof degree" = 8
+)
+
+income_labels <- c(
+  "<$5k" = 1, "[$5k-8k)" = 2, "[$8k12k)" = 3, "[$12k-16k)" = 4, "[$16k-20k)" = 5,
+  "[$20k-25k)" = 6, "[$25k-30k)" = 7, "[$30k35k)" = 8, "[$35k-40k)" = 9,
+  "[$40k-50k)" = 10, "[$50k-75k)" = 11, "[$75k-100k)" = 12, "<=$100k" = 13
+)
+
+full_mesa <- read_csv("data/mesa.csv") %>%
+  select(-idno) %>%
+  transmute(
+    f_sex = factor(gender1, levels = 0:1, labels = c("Female", "Male")),
+    f_race = factor(race1c, levels = 1:4, labels = c("white", "Chinese", "black", "Hispanic")),
+    f_htn_med = factor(htnmed1c, levels = 0:1, labels = c("no", "yes")),
+    f_htn = factor(htn1c, levels = 0:1, labels = c("no", "yes")),
+    f_cig_use = factor(cig1c, levels = 0:2, labels = c("never", "former", "current")),
+    f_diab = factor(txdiab, levels = 0:1, labels = c("no", "yes")),
+    f_site = factor(site1c, levels = site_labels, labels = names(site_labels)),
+    f_edu = factor(educ1, levels = edu_labels, labels = names(edu_labels)),
+    f_income = factor(income1, levels = income_labels, labels = names(income_labels))
+  ) %>%
+  select(-gender1, -race1c, -htnmed1c, -htn1c, -cig1c, -site1c, -educ1, -income1, -txdiab) %>%
+  mutate_if(is.factor, fct_explicit_na) %>%
+  mutate(
+    sex_numeric = as.numeric(f_sex) - 1,
+    log2_crp = log2(crp1),
+    log2_pkyrs = log2(pkyrs1c)
+  )
+```
+
+
+```{r include=FALSE}
+crp_lv_race_scatter <- ggplot(mesa, aes(x = log2_crp, y = lvmass, color = factor(f_race))) +
+  geom_point(shape = 1, alpha = .5) +
+  geom_smooth(se = FALSE, method = "lm") +
+  labs(
+    title = "LV-mass vs log2 crp",
+    x = "log2 crp (mg/l)",
+    y = "LV-mass (g)",
+    color = "Race/Ethnicity") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"), legend.position = "top")
+
+ggsave(
+  "plots/crp_vs_lvmass_by_race.png", crp_lv_race_scatter,
+  width = 7, height = 5, units = "in", dpi = 300
+)
+```
+
+
+```{r include=FALSE}
+crp_lv_smoke_scatter <- mesa %>%
+  filter(f_cig_use != "(Missing)") %>%
+  ggplot(aes(x = log2_crp, y = lvmass, color = factor(f_cig_use))) +
+  geom_point(shape = 1, alpha = .5) +
+  geom_smooth(se = FALSE, method = "lm") +
+  labs(
+    title = "LV-mass vs log2 crp",
+    x = "log2 crp (mg/l)",
+    y = "LV-mass (g)",
+    color = "Cigarette smoking status") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"), legend.position = "top")
+
+ggsave(
+  "plots/crp_vs_lvmass_by_cig_use.png", crp_lv_smoke_scatter,
+  width = 7, height = 5, units = "in", dpi = 300
+)
+```
+
