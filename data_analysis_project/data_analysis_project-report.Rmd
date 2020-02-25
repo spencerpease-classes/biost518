@@ -4,10 +4,11 @@ author: "Group 3"
 output: pdf_document
 fontsize: 11pt
 geometry: margin=.8in
+indent: true
 header-includes:
   - \usepackage{setspace}
   - \doublespacing
-abstract: "\\singlespacing Clinical studies have shown that left ventricular mass (LVM) is a strong subclinical predictor of cardiovascular disease (CVD), which is a major cause of death globally. To characterize and investigate the relationship between inflammation and LVM, cross-sectional data from the MESA cohort was analyzed using multiple linear regression modeling. Using inflammation as a predictor variable, measured by CRP levels, and adjusting for sex and BMI, estimated mean LVM is 0.35g (95% CI: -0.90, 0.21) lower on average for each unit increase in $log_2(CRP)$. Conducting MLR adjusting for age, sex, race, BMI and systolic blood pressure (SBP), the estimated mean LVM is 2.48g (95% CI: -6.81, 1.85) lower on average for each unit increase in $log_2(CRP)$. However, both MLR models have the two-sided _p_-values >0.05, which indicates insufficient evidence to reject the null hypothesis of no association between LVM and $log_2(CRP)$. The results of this study show the relationship between inflammation and LVM arises from complex mechanisms and that further research is needed to determine appropriate predictive models to aid early detection and clinical counselling for management of CVD."
+abstract: "\\singlespacing Clinical studies have shown that left ventricular mass (LVM) is a strong subclinical predictor of cardiovascular disease (CVD), which is a major cause of death globally. To characterize and investigate the relationship between inflammation and LVM, cross-sectional data from the MESA cohort was analyzed using multiple linear regression modeling. Using inflammation as a predictor variable, measured by CRP levels, and adjusting for sex and BMI, estimated mean LVM is 0.35g (95% CI: -0.90, 0.21) lower on average for each unit increase in $log_2(CRP)$. Conducting MLR adjusting for age, sex, race, BMI and systolic blood pressure (SBP), the estimated mean LVM is 2.48g (95% CI: -6.81, 1.85) lower on average for each unit increase in $log_2(CRP)$. However, both MLR models have two-sided _p_-values >0.05, which indicates insufficient evidence to reject the null hypothesis of no association between LVM and $log_2(CRP)$. The results of this study show the relationship between inflammation and LVM arises from complex mechanisms and that further research is needed to determine appropriate predictive models to aid early detection and clinical counselling for management of CVD."
 ---
 
 ```{r setup, include=FALSE}
@@ -37,7 +38,7 @@ mesa <- read_csv("data/mesa.csv", col_types = cols(.default = col_double())) %>%
     log2_CRP = log2(crp1),
     BMI = bmi1c,
     Sex = factor(gender1, levels = 0:1, labels = c("Female", "Male")),
-    Race = factor(race1c, levels = 1:4, labels = c("white", "Chinese", "black", "Hispanic")),
+    Race = factor(race1c, levels = 1:4, labels = c("White", "Chinese", "Black", "Hispanic")),
     Age = age,
     SBP = sbp1c
   ) %>%
@@ -53,17 +54,18 @@ research, such as the Framingham Study, have shown left ventricular hypertrophy
 (LVH) is an important predictor of adverse cardiovascular events (2). In turn,
 LVH is associated with multiple factors such as age, weight, race, and blood
 pressure, which potentially remodel ventricular thickness and size (1-3). The
-Multi-Ethnic Study of Atherosclerosis (MESA) used advanced magnetic resonance
-imaging (MRI) measurement tools to evaluate the prevalence and progression of
+Multi-Ethnic Study of Atherosclerosis (MESA) used magnetic resonance imaging
+(MRI) measurement tools to evaluate the prevalence and progression of
 subclinical CVD in a cohort of 6,814 men and women between 45 and 84 years of
 age across 6 sites in the US (3). Risk factors for CVD were measured, including
 C-reactive protein (CRP), which is a protein used as a biomarker for
 inflammation and has been associated with higher risk of cardiovascular disease
-(4-5). Our first aim is to use cross-sectional MESA data to characterize the
-association between CRP and left ventricular mass (LVM). Our second aim is to
-further investigate the complex social, demographic, biological, and behavioral
-mechanisms through which inflammation contributes to LVH, thus identifying
-predictive factors and enhancing interventions for averting global CVD deaths.
+(4-5). Our first aim is to use cross-sectional data from the MESA study to
+characterize the association between CRP and left ventricular mass (LVM). Our
+second aim is to further investigate the complex social, demographic,
+biological, and behavioral mechanisms through which inflammation contributes to
+LVH, thus identifying factors and enhancing interventions for averting global
+CVD deaths.
 
 
 ## Methods
@@ -80,9 +82,9 @@ $$
 
 $$
 \begin{aligned}
-E(LVM \mid crp, sex, bmi, age, sbp, race) &= \beta_0 + \beta_1(crp) \\
-&+ \beta_2(sex) + \beta_3(bmi) + \beta_4(age) + \beta_5(sbp) + \beta_{6-8}(race) \\
-&+ crp[\beta_9(sex) + \beta_10(bmi) + \beta_11(age) + \beta_12(sbp) + \beta_{13-15}(race)]
+E(LVM \mid crp, sex, bmi, age, sbp, race) &= \beta_0 + \beta_1(crp)
++ \beta_2(sex) + \beta_3(bmi) + \beta_4(age) + \beta_5(sbp) + \beta_{6-8}(race) \\
+&+ crp[\beta_9(sex) + \beta_{10}(bmi) + \beta_{11}(age) + \beta_{12}(sbp) + \beta_{13-15}(race)]
 \end{aligned}
 $$
 
@@ -99,15 +101,15 @@ using robust standard error estimates, to relax the assumption of
 homoscedasticity. We removed observations from our sample which included
 variables that had missing values, after which our sample size remained
 sufficiently large enough to assume asymptotically normal distribution of data.
-The distribution of CRP is heavily right skewed, so in our models we use
-the $log_2$ transformation of CRP. All statistical significance tests are performed
+The distribution of CRP is heavily right skewed, so in our models we use the
+$log_2$ transformation of CRP. All statistical significance tests are performed
 at the $\alpha = 0.05$ level. Our methods assumed independent data.
 
 
 ## Results
 
 Baseline characteristics of $6,714$ participants are shown in Table 1. The
-meanstandard deviation (SD) age was $62 \pm 10$ years and $53\%$ were female.
+mean and standard deviation (SD) age was $62 \pm 10$ years and $53\%$ were female.
 
 ```{r}
 stbl_cont <- mesa %>%
@@ -131,18 +133,33 @@ knitr::kable(list(stbl_cont, stbl_cat), booktabs = TRUE, digits = 2,
 
 ```
 
-In Aim 1, based on a multiple linear regression model adjusted for sex and BMI,
+```{r}
+crude_lm <- mesa %>%
+  filter(!is.na(`LV-mass`)) %>%
+  mutate(Sex = as.numeric(Sex) -1) %>%
+  regress("mean", `LV-mass` ~ log2_CRP + Sex + BMI, data = .)
+
+crude_inf <- crude_lm %>%
+  inference_table(
+    paramter_names = c("Intercept", "log2 crp", "Sex", "BMI"),
+    include_intercept = TRUE
+  ) %>%
+  mutate(`Pr(>|t|)` = format(`Pr(>|t|)`, digits = 3))
+```
+
+
+In Aim 1, based on a MLR model adjusted for sex and BMI,
 we found that the estimated mean LVM was lower by $0.35$g ($95\%$ CI: $-0.90$,
 $0.21$) for each unit increase in $log_2(CRP)$, on average. A two-sided p-value
-of $0.22$, suggests insufficient evidence to reject the null hypothesis of no
+of $0.22$ suggests insufficient evidence to reject the null hypothesis of no
 association between LVM and $log_2(CRP)$.
 
 In exploratory analysis, a scatterplot with fitted regression lines was used to
-evaluate the relationship between LVM and $log_2(CRP)$. An association between LVM
-and $log_2(CRP)$ was not readily apparent among the combined sex cohort, but when
-stratified by sex, a first-order trend of positive association between higher
-$log_2(CRP)$ and higher LVM was evident among both sexes (Figure 1),
-suggesting that sex is likely a confounder of the LVM-$log_2(CRP)$ relationship.
+evaluate the relationship between LVM and $log_2(CRP)$. An association between
+LVM and $log_2(CRP)$ was not readily apparent among the combined sex cohort, but
+when stratified by sex, a first-order trend of positive correlation between
+$log_2(CRP)$ and LVM was evident among both sexes (Figure 1), suggesting that
+sex is likely a confounder of the LVM-$log_2(CRP)$ relationship.
 
 ```{r}
 crp_lv_sex_scatter <- ggplot(mesa, aes(x = log2_CRP, y = `LV-mass`)) +
@@ -164,7 +181,7 @@ ggsave(
 )
 ```
 
-```{r fig.height=3.9}
+```{r fig.height=4.5}
 crp_lv_sex_scatter
 ```
 
@@ -209,9 +226,8 @@ knitr::kable(full_lm_int_inf_tbl, booktabs = TRUE, digits = 2,
 
 Additionally, the LVM-$log_2(CRP)$ relationship stratified by race was examined
 in a scatterplot with corresponding fitted regression lines in an exploratory
-analysis. Similar slopes for the race-specific associations suggested no
-noticeable differences across race categories. Thus, race did not appear to
-modify the LVM-$log_2(CRP)$ association.
+analysis. Overall, the race adjustment estimate was not statistically significant,
+suggesting race does not appear to modify the LVM-$log_2(CRP)$ association.
 
 
 ## Discussion
@@ -232,18 +248,17 @@ poorer health not being adequately represented.
 Despite such limitations, our exploratory analyses suggest that sex is a
 confounder of the association between CRP and LVH, which is biologically
 plausible, given the multifactorial role of sex hormones on various organ
-systems in the body, which can directly affect CRP levels and directly affect
-LVM. Our multivariate linear regression analyses suggest BMI is an effect
-modifier of the association between CRP and LVH, which is also biologically
-plausible, given that higher BMI is often associated with greater adiposity, a
-hormone-releasing tissue known to be generally associated with higher levels of
-inflammation in the body and also known to be associated with higher LVM.
-However, it is likely that LVH is also associated with complex mechanisms
-involving multiple social, demographic, biological, and behavioral risk factors
-that are beyond the scope of our data analysis, and more studies are needed to
-continue to advance our understanding of the association that such variables
-have on LVH, which in turn could help focus interventions to reduce CVD related
-morbidity and mortality globally.
+systems in the body, which can directly affect CRP levels and affect LVM. Our
+MLR analyses suggest BMI is an effect modifier of the association between CRP
+and LVH, which is also biologically plausible, given that higher BMI is often
+associated with greater adiposity, a hormone-releasing tissue known to be
+generally associated with higher levels of inflammation. However, it is likely
+that LVH is also associated with complex mechanisms involving multiple social,
+demographic, biological, and behavioral risk factors that are beyond the scope
+of our data analysis, and more studies are needed to continue to advance our
+understanding of the association that such variables have on LVH, which in turn
+could help focus interventions to reduce CVD related morbidity and mortality
+globally.
 
 
 ### References
