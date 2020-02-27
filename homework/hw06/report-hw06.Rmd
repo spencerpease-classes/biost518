@@ -1,0 +1,50 @@
+---
+title: "Homework 06"
+author: "Spencer Pease"
+date: "2/28/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+# Set output options
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '-')
+
+# Include libraries
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(uwIntroStats)
+
+# Helper functions
+
+
+# Prepare data
+wcgs <- read_csv("data/wcgs.csv") %>%
+  transmute(
+    age,
+    chd_event = if_else(chd69 == "no", 0, 1), 
+    ab_personality = factor(dibpat)
+  )
+
+```
+
+# _(Q1)_ Association between age and CHD events 
+
+## _(Q1.a)_
+## _(Q1.b)_
+## _(Q1.c)_
+## _(Q1.d)_
+## _(Q1.e)_
+## _(Q1.f)_
+## _(Q1.g)_
+
+
+# _(Q2)_ Association between personality and CHD events
+
+## _(Q2.a)_
+## _(Q2.b)_
+## _(Q2.c)_
+## _(Q2.d)_
+## _(Q2.e)_
