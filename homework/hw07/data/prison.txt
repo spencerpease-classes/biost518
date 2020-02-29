@@ -1,0 +1,77 @@
+================================
+GENERAL EXPLANATION OF THE STUDY
+================================
+
+This data set is from a study by the California Department
+of Corrections (CDC) on the effectiveness of prisoner placement,
+and the likelihood of misconduct while incarcerated.  Because of
+the cost of running high security facilities, it is important to
+be able to sort inmates into different levels of risk and then 
+place them into the lowest security level that eliminates risk to 
+other inmates, staff and themselves.  The data included here can 
+be used to examine how well those goals are achieved.
+
+Most prisoners are assigned to a facility based on a classification 
+score.  The classification score is based on the length of the 
+sentence and other variables, including age, marital status and 
+prior convictions.  There are, for most inmates, four levels of 
+facilities to which one can be assigned.  A Level 1 facility has 
+the lowest security and a Level 4 facility has the highest security.  
+Level 4 facilities are reserved for the most dangerous prisoners, 
+or prisoners who need protection from other inmates.  For this 
+study, all the prisoners in the lower security Levels 1-3 are 
+combined and compared to those assigned to Level 4 facilities.  
+It should also be noted that this data set includes only prisoners 
+assigned by a classification score.  Some prisoners are also assigned 
+to a security level because of other issues or constraints, such as 
+whether there are beds available, or because the offender is a 
+particular risk if he escapes.
+
+This study was published: "An Evaluation of California's Inmate 
+Classification System Using a Generalized Regression Discontinuity 
+Design," Journal of the American Statistical Association, Dec. 1999, 
+Vol. 94, No.448, Applications and Case Studies.
+
+=============================
+BRIEF DESCRIPTION OF THE DATA
+=============================
+ 
+Beginning in January 1994, the CDC began enrolling inmates in this 
+study.  A total of 3,922 inmates are included (only 3918 have 
+classification scores).  The response variable indicates whether 
+the prisoner committed any misconduct violations.  All incidents 
+of misconduct were recorded, including less serious violations such 
+as not standing for a count or not showing up for an assignment, as 
+well as more serious violations, like drug trafficking or assaulting 
+a corrections officer. A "Strike 2" inmate is a prisoner who is 
+serving time for a second felony and who was sentenced under a 
+California law mandating sentence length enhancements.  A "Strike 3" 
+inmate is a prisoner who is serving time for a third felony, in which 
+case that same law mandated a life sentence.  Since such prisoners have 
+little to lose, they are usually assigned to the maximum (level 4) 
+security prisons.  "Treat" whether a prisoner was assigned to a maximum security
+(level 4) prison (the lower security levels 1-3 are 
+combined into one level in this dataset).  This is an observational study, since the 
+prisoners were not randomly selected and assigned.
+
+=========
+DATA FILE
+=========
+
+There are five variables in the data set.
+ 
+RESPONSE........Misconduct Violation (1) or not (0)
+ 
+SCORE...........Classification Score
+ 
+STRIKE 2........Two Striker Inmate (1) or not (0)
+ 
+STRIKE 3........Three Striker Inmate (1) or not (0)
+ 
+TREAT...........Classified to Level 4 (1) or not (0)
+
+
+DATA PROVIDED BY: Dr. Richard Berk and Dr. Jan de Leeuw, UCLA
+
+ 
+ 
