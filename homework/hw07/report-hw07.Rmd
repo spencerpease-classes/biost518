@@ -23,14 +23,16 @@ library(uwIntroStats)
 # Prepare data
 prison <- read_csv("data/prison_data.csv") %>% select(score, treat, response)
 
+race_labels <- c("Other", "White", "Black", "Asian", "Hispanic")
+
 birth <- read_csv("data/birthdata.csv") %>%
   filter(smoker == "N", drinker == "N", parity == 0) %>%
   mutate(
     low_bwt = if_else(bwt < 2500, 1, 0),
-    sex = factor(gender, levels = c("M", "F"), labels = c("Male", "Female"))
-    race = factor(race, levels = c("other", "white", "black", "asian", "hispanic"))
+    sex = factor(gender, levels = c("M", "F"), labels = c("Male", "Female")),
+    race = factor(race, levels = tolower(race_labels), labels = race_labels)
   ) %>%
-  select(low_bwt, age, race, education, sex = gender)
+  select(low_bwt, age, race, education, sex)
 
 ```
 
