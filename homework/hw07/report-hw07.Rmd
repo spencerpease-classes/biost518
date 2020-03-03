@@ -15,13 +15,14 @@ options(knitr.kable.NA = '-')
 library(dplyr)
 library(readr)
 library(ggplot2)
+library(sandwich)
 library(uwIntroStats)
 
 # Helper functions
-
+source("functions/inference_table.R")
 
 # Prepare data
-prison <- read_csv("data/prison_data.csv") %>% select(score, treat, response)
+prison <- read_csv("data/prison_data.csv") %>% select(response, score, treat)
 
 race_labels <- c("Other", "White", "Black", "Asian", "Hispanic")
 
@@ -37,13 +38,78 @@ birth <- read_csv("data/birthdata.csv") %>%
 ```
 
 # _(Q1)_
+
+```{r fig.cap="Casual diagram relating score, treatment, and behavior", out.width="80%"}
+# knitr::include_graphics("images/aaa.png")
+```
+
 # _(Q2)_
+
+```{r}
+resp_score_lrm <- regress("odds", response ~ score, data = prison)
+
+resp_score_lrm2 <- glm(response ~ score, data = prison, family = "binomial")
+resp_score_rse <- sqrt(diag(vcovHC(resp_score_lrm2, type = "HC1")))
+```
+
+```{r}
+resp_score_inf <- resp_score_lrm %>%
+  inference_table(include_intercept = TRUE) %>%
+  mutate(`Pr(>|z|)` = format(`Pr(>|z|)`, digits = 3))
+
+knitr::kable(
+  resp_score_inf, booktabs = TRUE, digits = 3,
+  caption = "Inferential statistics for the logistic regression of behavior response on score"
+)
+```
+
+
 # _(Q3)_
+
+```{r}
+predict(resp_score_lrm2, newdata = data.frame(score = c(25, 50, 75)), type = "response")
+```
+
+
 # _(Q4)_
+
+Yes, since treatment is known to affect behavior
+
+
 # _(Q5)_
+
+```{r}
+resp_score_treat_lrm <- regress("odds", response ~ score * treat, data = prison)
+
+resp_score_treat_lrm2 <- glm(response ~ score * treat, data = prison, family = "binomial")
+resp_score_treat_rse <- sqrt(diag(vcovHC(resp_score_treat_lrm2, type = "HC1")))
+```
+
 ## _(Q5.a)_
+
+```{r}
+resp_score_treat_inf <- resp_score_treat_lrm %>%
+  inference_table(include_intercept = TRUE) %>%
+  mutate(`Pr(>|z|)` = format(`Pr(>|z|)`, digits = 3))
+
+knitr::kable(
+  resp_score_treat_inf, booktabs = TRUE, digits = 3,
+  caption = paste("Inferential statistics for the logistic regression of",
+                  "behavior response on score, adjusted for treatment")
+)
+```
+
 ## _(Q5.b)_
-# _(Q6)_
+
+```{r}
+predict(
+  resp_score_treat_lrm2,
+  newdata = expand.grid(score = c(25, 50, 75), treat = 0:1),
+  type = "response"
+)
+```
+
+# _(Q6)_ (Optional)
 # _(Q7)_
 # _(Q8)_
 ## _(Q8.a)_
