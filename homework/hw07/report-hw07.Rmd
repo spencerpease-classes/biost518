@@ -30,7 +30,8 @@ birth <- read_csv("data/birthdata.csv") %>%
   filter(smoker == "N", drinker == "N", parity == 0) %>%
   mutate(
     low_bwt = if_else(bwt < 2500, 1, 0),
-    sex = factor(gender, levels = c("M", "F"), labels = c("Male", "Female")),
+    sex = if_else(gender == "F", 1, 0),
+    f_sex = factor(gender, levels = c("M", "F"), labels = c("Male", "Female")),
     race = factor(race, levels = tolower(race_labels), labels = race_labels)
   ) %>%
   select(low_bwt, age, race, education, sex)
@@ -67,7 +68,16 @@ knitr::kable(
 # _(Q3)_
 
 ```{r}
-predict(resp_score_lrm2, newdata = data.frame(score = c(25, 50, 75)), type = "response")
+resp_score_pred <-
+  tibble(score = c(25, 50, 75)) %>%
+  mutate(
+    `prob. misconduct` = predict(resp_score_lrm2, newdata = ., type = "response")
+  )
+
+knitr::kable(
+  resp_score_pred, booktabs = TRUE, digits = 3,
+  caption = "Predicted probability of misconduct based on score"
+)
 ```
 
 
@@ -102,10 +112,14 @@ knitr::kable(
 ## _(Q5.b)_
 
 ```{r}
-predict(
-  resp_score_treat_lrm2,
-  newdata = expand.grid(score = c(25, 50, 75), treat = 0:1),
-  type = "response"
+resp_score_treat_pred <- expand.grid(treat = 0:1, score = c(25, 50, 75)) %>%
+  mutate(
+    `prob. misconduct` = predict(resp_score_treat_lrm2, newdata = ., type = "response")
+  )
+
+knitr::kable(
+  resp_score_treat_pred, booktabs = TRUE, digits = 3,
+  caption = "Predicted probability of misconduct based on score and treatment"
 )
 ```
 
@@ -115,7 +129,34 @@ predict(
 ## _(Q8.a)_
 ## _(Q8.b)_
 ## _(Q8.c)_
+
 # _(Q9)_
-## _(Q9.a)_
-## _(Q9.b)_
+
+## _(Q9.a,b)_
+
+For the question of interest, **mother's education** plays the role of a
+_confounder_, while **baby's sex** plays is a _precision_ variable.
+
 ## _(Q9.c)_
+
+```{r}
+birth_lrm <- regress(
+  "odds",
+  low_bwt ~ age * (factor(race) + education + sex),
+  data = birth
+)
+```
+
+```{r}
+birth_inf <- birth_lrm %>%
+  inference_table(include_intercept = TRUE) %>%
+  mutate(`Pr(>|z|)` = format(`Pr(>|z|)`, digits = 3))
+
+knitr::kable(
+  birth_inf, booktabs = TRUE, digits = 3,
+  caption = paste("Inferential statistics for the logistic regression of",
+                  "low birth weight by age, adjusted for race, education, and sex")
+)
+```
+
+
