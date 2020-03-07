@@ -1,0 +1,43 @@
+---
+title: "Homework 08"
+author: "Spencer Pease"
+date: "3/13/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+# Set output options
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '-')
+
+# Include libraries
+library(dplyr)
+library(readr)
+library(haven)
+library(ggplot2)
+library(survival)
+
+# Helper functions
+
+
+# Prepare data
+tumor <- read_table2("data/TUMORdata.txt")
+pbc <- read_dta("data/pbc.dta")
+
+```
+
+# _(Q1)_
+# _(Q2)_
+## _(Q2.a)_
+## _(Q2.b)_
+# _(Q3)_
+# _(Q4)_
+# _(Q5)_
+## _(Q5.a)_
+## _(Q5.b)_
+## _(Q5.c)_
+# _(Q6)_
+## _(Q6.a)_
+## _(Q6.b)_
+## _(Q6.c)_
