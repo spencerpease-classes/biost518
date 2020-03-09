@@ -17,27 +17,101 @@ library(readr)
 library(haven)
 library(ggplot2)
 library(survival)
+library(survminer)
 
 # Helper functions
 
-
 # Prepare data
-tumor <- read_table2("data/TUMORdata.txt")
+tumor <- read_table2("data/TUMORdata.txt") %>% mutate(GX = 2 - group)
 pbc <- read_dta("data/pbc.dta")
 
 ```
 
-# _(Q1)_
+# _(Q1)_ Bladder Cancer Survival
+
+```{r}
+tumor_surv <- with(tumor, Surv(time, event))
+tumor_fit <- survfit(tumor_surv ~ group, data = tumor)
+
+tumor_plot <- ggsurvplot(
+  tumor_fit,
+  data = tumor,
+  legend.labs = c("Placebo", "Thiotepa")
+)
+
+tumor_plot$plot <- tumor_plot$plot +
+  theme(text = element_text(family = "serif")) +
+  labs(
+    title = "Kaplan-Meier Survival Curve of Tumor Relapse",
+    subtitle = "Stratified by treatment group",
+    x = "Time (months)",
+    y = "Survival Probability"
+  )
+
+```
+
+```{r}
+tumor_plot$plot
+```
+
+```{r}
+tumor_logrank <- survdiff(tumor_surv ~ group, data = tumor, rho = 0)
+
+broom::glance(tumor_logrank) %>%
+  set_names(c("Chi-Sq", "DF", "P-value")) %>%
+  knitr::kable(
+    booktabs = TRUE, digits = 3,
+    caption = "Hello"
+  )
+```
+
+TBD
+
 # _(Q2)_
+
 ## _(Q2.a)_
+
+```{r}
+tumor_cox <- coxph(tumor_surv ~ group, data = tumor)
+```
+
 ## _(Q2.b)_
+
+```{r}
+q2b <- list(
+  broom::glance(tumor_logrank)$p.value,
+  broom::tidy(tumor_cox)$p.value
+)
+
+```
+
 # _(Q3)_
-# _(Q4)_
+
+TBD (all that changes is the direction)
+
+```{r}
+tumor_gx_cox <- coxph(tumor_surv ~ GX, data = tumor)
+```
+
+# _(Q4)_ Primary Biliary Cirrhosis Survival
+
+```{r}
+pbc_surv <- with(pbc, Surv(years, status))
+pbc_cox <- coxph(pbc_surv ~ albumin, data = pbc)
+```
+
 # _(Q5)_
+
+```{r}
+
+```
+
 ## _(Q5.a)_
 ## _(Q5.b)_
 ## _(Q5.c)_
-# _(Q6)_
+
+# _(Q6)_ CVD Smoking and Death
+
 ## _(Q6.a)_
 ## _(Q6.b)_
 ## _(Q6.c)_
