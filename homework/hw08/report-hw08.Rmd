@@ -57,15 +57,18 @@ tumor_plot$plot
 ```{r}
 tumor_logrank <- survdiff(tumor_surv ~ group, data = tumor, rho = 0)
 
-broom::glance(tumor_logrank) %>%
-  set_names(c("Chi-Sq", "DF", "P-value")) %>%
-  knitr::kable(
-    booktabs = TRUE, digits = 3,
-    caption = "Hello"
-  )
+tumor_logrank_tbl <- tumor_logrank %>%
+  broom::glance() %>%
+  rename(`Chi-Sq` = statistic, `P-value` = p.value)
+
+knitr::kable(tumor_logrank_tbl, booktabs = TRUE, digits = 3,
+  caption = "Logrank test of Kaplan-Meier Curve by treatment group"
+)
 ```
 
-TBD
+A logrank test greater than 0 shows there is some difference in the observed
+vs expected values of remission by treatment group. A _p_-value over .05
+suggests this difference is not statistically significant.
 
 # _(Q2)_
 
@@ -73,24 +76,93 @@ TBD
 
 ```{r}
 tumor_cox <- coxph(tumor_surv ~ group, data = tumor)
+
+tumor_cox_tbl <- tumor_cox %>%
+  broom::tidy() %>%
+  transmute(
+    Predictor = term,
+    coef = estimate,
+    `exp(coef)` = exp(estimate),
+    SE = std.error,
+    `z-stat` = statistic,
+    `Pr(>|z|)` = p.value,
+    `exp(95%L)` = exp(conf.low),
+    `exp(95%H)` = exp(conf.high)
+  )
+
+q2a <- list(
+  tumor_cox_tbl[, c(3, 7, 8)] %>% as.numeric() %>% round(digits = 3),
+  tumor_cox_tbl[[1, 6]] %>% round(digits = 3)
+)
+
+knitr::kable(tumor_cox_tbl, booktabs = TRUE, digits = 3,
+  caption = "Summary of Cox-PH model with predictor 'group'"
+)
+
 ```
+
+The subset of the population in the thiotepa treatment group is associated with
+being `r q2a[[1]][1]` (95% CI: `r q2a[[1]][2]`, `r q2a[[1]][3]`) times as
+likely to come out of remission, on average, as the subset of the population in
+the placebo treatment group. A _p_-value of `r q2a[[2]][1]` suggests this
+difference is not statistically significant.
 
 ## _(Q2.b)_
 
 ```{r}
 q2b <- list(
-  broom::glance(tumor_logrank)$p.value,
-  broom::tidy(tumor_cox)$p.value
-)
+  tumor_logrank_tbl[["P-value"]],
+  tumor_cox_tbl[["Pr(>|z|)"]]
+) %>% purrr::map(~round(.x, digits = 3))
 
 ```
 
+ - Cox-PH _p_-value: `r q2b[[1]]`
+ - Kaplan-Meier Curve logrank test _p_-value: `r q2b[[2]]`
+
+Both of these _p_-values are on the same order of magnitude and indicate that
+their results are not statistically significant. The difference comes from what
+the two methods are testing. The logrank test is only testing for a difference
+in expected vs observed value between groups, while the Cox-PH regression tests
+for an association between the response and predictor. In this case, since both
+the response and predictor are binary variables, the two test are getting at a
+similar relationship in different ways.
+
 # _(Q3)_
 
-TBD (all that changes is the direction)
+The difference between using _group_ and _GX_ as predictors in the model, since
+they both look at the treatment status of the patients, is the implicit ordering
+of binary variable. _GX_ encodes “placebo” as the higher treatment group, while
+_group_ encodes “thiotepa” as the higher treatment group. Since all that’s
+changing is the direction, the parameter estimate $\beta_1$ will change sign
+between the two groups, and the respective hazard ratios will be inverses of
+each other.
 
 ```{r}
 tumor_gx_cox <- coxph(tumor_surv ~ GX, data = tumor)
+
+tumor_gx_cox_tbl <- tumor_gx_cox %>%
+  broom::tidy() %>%
+  transmute(
+    Predictor = term,
+    coef = estimate,
+    `exp(coef)` = exp(estimate),
+    SE = std.error,
+    `z-stat` = statistic,
+    `Pr(>|z|)` = p.value,
+    `exp(95%L)` = exp(conf.low),
+    `exp(95%H)` = exp(conf.high)
+  )
+
+q3 <- list(
+  tumor_gx_cox_tbl[, c(3, 7, 8)] %>% as.numeric() %>% round(digits = 3),
+  tumor_gx_cox_tbl[[1, 6]] %>% round(digits = 3)
+)
+
+knitr::kable(tumor_gx_cox_tbl, booktabs = TRUE, digits = 3,
+  caption = "Summary of Cox-PH model with predictor 'GX'"
+)
+
 ```
 
 # _(Q4)_ Primary Biliary Cirrhosis Survival
@@ -98,20 +170,90 @@ tumor_gx_cox <- coxph(tumor_surv ~ GX, data = tumor)
 ```{r}
 pbc_surv <- with(pbc, Surv(years, status))
 pbc_cox <- coxph(pbc_surv ~ albumin, data = pbc)
+
+pbc_cox_tbl <- pbc_cox %>%
+  broom::tidy() %>%
+  transmute(
+    Predictor = term,
+    coef = estimate,
+    `exp(coef)` = exp(estimate),
+    SE = std.error,
+    `z-stat` = statistic,
+    `Pr(>|z|)` = p.value,
+    `exp(95%L)` = exp(conf.low),
+    `exp(95%H)` = exp(conf.high)
+  ) %>%
+  mutate(`Pr(>|z|)` = format(`Pr(>|z|)`, digits = 3))
+
+q4 <- list(
+  pbc_cox_tbl[, c(3, 7, 8)] %>% as.numeric() %>% round(digits = 3),
+  pbc_cox_tbl[[1, 6]]
+)
+
+knitr::kable(pbc_cox_tbl, booktabs = TRUE, digits = 3,
+  caption = "Summary of Cox-PH model with predictor 'albumin'"
+)
 ```
+
+Two subsets of the population differing by $1 \frac{g}{dl}$ albumin are
+associated with hazards of death `r q4[[1]][1]` (95% CI: `r q4[[1]][2]`,
+`r q4[[1]][3]`) times as high, on average, in the higher group. A _p_-value of
+`r q4[[2]][1]` suggests this difference is statistically significant.
 
 # _(Q5)_
 
+## _(Q5.a)_
+
 ```{r}
+pbc_beta <- pbc_cox$coefficients
+
+pbc_diff_tbl <-
+  tibble(
+    reference = 3,
+    value = c(2.5, 3.5, 4)
+  ) %>%
+  mutate(
+    `log(hazard) diff` = pbc_beta * (value - reference),
+    `hazard ratio` = exp(`log(hazard) diff`)
+  )
+
+knitr::kable(pbc_diff_tbl, booktabs = TRUE, digits = 3,
+  caption = "Estimated log(hazard) difference and HR for differences in 'albumin'"
+)
 
 ```
 
-## _(Q5.a)_
-## _(Q5.b)_
-## _(Q5.c)_
+## _(Q5.b,c)_
+
+The hazard ratio for $2.5 \frac{g}{dl}$ to $3 \frac{g}{dl}$ is the inverse of
+the hazard ratio for $3.5 \frac{g}{dl}$ to $3 \frac{g}{dl}$.
+
+Since the difference between $3.5$ and $2.5$ is $1$, the estimated hazard ratio
+would be the same as the exponentiated parameter estimate ($e^{\beta_1}$).
 
 # _(Q6)_ CVD Smoking and Death
 
 ## _(Q6.a)_
+
+We should adjust for age in this analysis, since we are interested in the
+association between smoking and death. It’s a given that older people are more
+likely to die for many reasons, but we are interested in the direct effect
+smoking has on mortality. Adjusting for age allows us to get at this
+relationship, controlling for the additional mortality associated with age.
+
 ## _(Q6.b)_
+
+Since there are significantly more people in the sample who don’t smoke, and
+they are on average older than those who do smoke, we would expect the age
+adjusted hazard ratio for smoking to be higher than the unadjusted hazard ratio.
+Older people are generally more likely to die, so the age-related deaths in the
+higher ages made the smoking-related deaths in the younger ages more similar,
+hiding the real hazard of smoking. Adjusting for age shows the direct hazard of
+smoking.
+
 ## _(Q6.c)_
+
+The 95% confidence interval is calculated from the estimated coefficient, then
+exponentiated, and not from the exponentiated coefficient directly. This means
+we can’t expect the confidence interval to be symmetric around the estimated
+hazard ratio, since they are not calculated from each other.
