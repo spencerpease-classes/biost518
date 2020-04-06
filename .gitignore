@@ -1,6 +1,8 @@
 # Project-specific files
 
-data_analysis_project/data/*
+data_analysis_project/data/
+data_analysis_project/plots/
+data_analysis_project/*report.pdf
 !data_analysis_project/data/.gitkeep
 
 # Created by https://www.gitignore.io/api/r

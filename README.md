@@ -17,6 +17,8 @@ variables in the regression setting -- is also covered.
 
 ## Assignments
 
+Data analysis project: ([link][dap])
+
  * Homework 1: ([link][1])
  * Homework 2: Incomplete
  * Homework 3: ([link][3])
@@ -27,6 +29,8 @@ variables in the regression setting -- is also covered.
  * Homework 8: ([link][8])
 
 
+[dap]: data_analysis_project/
+
 [1]: homework/hw01/
 [3]: homework/hw03/
 [4]: homework/hw04/
@@ -34,3 +38,4 @@ variables in the regression setting -- is also covered.
 [6]: homework/hw06/
 [7]: homework/hw07/
 [8]: homework/hw08/
+
